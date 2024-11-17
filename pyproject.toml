@@ -1,17 +1,21 @@
 [project]
 name = "accessible_space"
-version = "0.1.2"
+version = "0.1.5"
 authors = [
   {name="Jonas Bischofberger", email="jonas.bischofberger@univie.ac.at"},
 ]
 description = "Implementation of the Dangerous Accessible Space (DAS) passing model for football analytics."
 readme = "README.md"
+license = {file = "LICENSE"}
 dependencies = [
     "matplotlib",
     "pandas<2.0.0",
     "numpy<1.25.0",
     "scipy",
 ]
+
+[project.urls]
+Repository = "https://github.com/jonas-bischofberger/accessible-space"
 
 [build-system]
 requires = ["setuptools", "wheel"]
