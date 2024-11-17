@@ -25,7 +25,7 @@ df_tracking = pd.DataFrame({
 })
 frame2controlling_team = {fr: 0 for fr in range(0, 14)}
 frame2controlling_team.update({fr: 1 for fr in range(14, 20)})
-df_tracking["controlling_team"] = df_tracking["frame_id"].map(frame2controlling_team)
+df_tracking["ball_possession"] = df_tracking["frame_id"].map(frame2controlling_team)
 df_tracking["period_id"] = 0
 
 df_passes = pd.DataFrame({
