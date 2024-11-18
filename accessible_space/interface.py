@@ -1,3 +1,5 @@
+import collections
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -23,6 +25,8 @@ _DEFAULT_PHI_OFFSET = 0
 _DEFAULT_N_V0_FOR_DAS = 20
 _DEFAULT_V0_MIN_FOR_DAS = 3
 _DEFAULT_V0_MAX_FOR_DAS = 30
+
+ExpectedPassCompletionResult = collections.namedtuple("ExpectedPassCompletionResult", ["xc", "simulation_index", "simulation_result"])
 
 
 def get_matrix_coordinates(
@@ -229,26 +233,26 @@ def get_expected_pass_completion(
     use_approx_two_point=_DEFAULT_USE_APPROX_TWO_POINT,
 ):
     """
-    Calculate Expected Pass Completion (xC) for the given passes, using the given tracking data.    
+    Calculate Expected Pass Completion (xC) for the given passes, using the given tracking data.
 
     >>> pd.set_option("display.max_columns", None)
     >>> pd.set_option("display.expand_frame_repr", False)
     >>> import accessible_space.tests.resources as res
-    >>> df_passes, df_tracking = res.df_passes, res.df_tracking
+    >>> df_passes, df_tracking = res.get_df_passes(), res.get_df_tracking()
     >>> df_passes
-       frame_id player_id receiver_id  team_id     x     y  x_target  y_target pass_outcome
-    0         0         A           B        0  -0.1   0.0       -10        11   successful
-    1         6         B           X        0  -9.6  10.5        15        30       failed
-    2        14         C           Y        0 -13.8 -12.9        49        -1       failed
-    >>> df_passes["xC"], df_passes["matrix_index"], simulation_result = get_expected_pass_completion(df_passes, df_tracking, tracking_frame_col="frame_id", event_frame_col="frame_id", tracking_player_col="player_id", tracking_team_col="team_id", ball_tracking_player_id="ball", tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", event_start_x_col="x", event_start_y_col="y", event_end_x_col="x_target", event_end_y_col="y_target", event_team_col="team_id", event_player_col="player_id")
+       frame_id  target_frame_id player_id  team_id receiver_id pass_outcome     x     y  x_target  y_target
+    0         0                6         A        0           B   successful  -0.1   0.0       -10        11
+    1         6               10         B        0           X       failed  -9.6  10.5        15        30
+    2        14               19         C        0           Y       failed -13.8 -12.9        49        -1
+    >>> df_passes["xC"], df_passes["simulation_index"], simulation_result = get_expected_pass_completion(df_passes, df_tracking, tracking_frame_col="frame_id", event_frame_col="frame_id", tracking_player_col="player_id", tracking_team_col="team_id", ball_tracking_player_id="ball", tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", event_start_x_col="x", event_start_y_col="y", event_end_x_col="x_target", event_end_y_col="y_target", event_team_col="team_id", event_player_col="player_id")
     >>> df_passes
-       frame_id player_id receiver_id  team_id     x     y  x_target  y_target pass_outcome        xC  matrix_index
-    0         0         A           B        0  -0.1   0.0       -10        11   successful  0.972250           0.0
-    1         6         B           X        0  -9.6  10.5        15        30       failed  0.091146           NaN
-    2        14         C           Y        0 -13.8 -12.9        49        -1       failed  0.081058           NaN
+       frame_id  target_frame_id player_id  team_id receiver_id pass_outcome     x     y  x_target  y_target        xC  simulation_index
+    0         0                6         A        0           B   successful  -0.1   0.0       -10        11  0.972250               0.0
+    1         6               10         B        0           X       failed  -9.6  10.5        15        30  0.091146               NaN
+    2        14               19         C        0           Y       failed -13.8 -12.9        49        -1  0.081058               NaN
     >>> simulation_result.poss_density_att.shape
     (3, 1, 50)
-    >>> simulation_result.prob_cum_att[int(df_passes["matrix_index"].iloc[0]), 0, -1]
+    >>> simulation_result.prob_cum_att[int(df_passes["simulation_index"].iloc[0]), 0, -1]
     0.9722499353573427
     """
     df_tracking = df_tracking.copy()
@@ -332,9 +336,9 @@ def get_expected_pass_completion(
     else:
         xc = simulation_result.prob_cum_att[:, 0, -1]  # F x PHI x T ---> F
 
-    matrix_index = df_passes[event_frame_col].map(frame_to_idx)
+    simulation_index = df_passes[event_frame_col].map(frame_to_idx)
 
-    return xc, matrix_index, simulation_result
+    return ExpectedPassCompletionResult(xc, simulation_index, simulation_result)
 
 
 def _get_danger(dist_to_goal, opening_angle):
@@ -401,21 +405,21 @@ def get_dangerous_accessible_space(
     >>> pd.set_option("display.max_columns", None)
     >>> pd.set_option("display.expand_frame_repr", False)
     >>> import accessible_space.tests.resources as res
-    >>> df_tracking = res.df_tracking
-    >>> df_tracking["AS"], df_tracking["DAS"], df_tracking["matrix_index"], simulation_result, dangerous_result = get_dangerous_accessible_space(df_tracking, tracking_frame_col="frame_id", tracking_player_col="player_id", tracking_team_col="team_id", ball_tracking_player_id="ball", tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", attacking_direction_col="attacking_direction", period_col="period_id", possession_team_col="ball_possession", infer_attacking_direction=True)
+    >>> df_tracking = res.get_df_tracking()
+    >>> df_tracking["AS"], df_tracking["DAS"], df_tracking["simulation_index"], simulation_result, dangerous_result = get_dangerous_accessible_space(df_tracking, tracking_frame_col="frame_id", tracking_player_col="player_id", tracking_team_col="team_id", ball_tracking_player_id="ball", tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", attacking_direction_col="attacking_direction", period_col="period_id", possession_team_col="ball_possession", infer_attacking_direction=True)
     >>> df_tracking
-         frame_id player_id  team_id    x     y   vx    vy  ball_possession  period_id  attacking_direction           AS       DAS  matrix_index
-    0           0         A      0.0 -0.1  0.00  0.1  0.05                0          0                  1.0  4479.436833  2.235315             0
-    1           1         A      0.0  0.0  0.05  0.1  0.05                0          0                  1.0  4511.233023  2.253153             1
-    2           2         A      0.0  0.1  0.10  0.1  0.05                0          0                  1.0  4502.846128  2.227248             2
-    3           3         A      0.0  0.2  0.15  0.1  0.05                0          0                  1.0  4495.100201  2.198680             3
-    4           4         A      0.0  0.3  0.20  0.1  0.05                0          0                  1.0  4474.157453  2.109178             4
-    ..        ...       ...      ...  ...   ...  ...   ...              ...        ...                  ...          ...       ...           ...
-    114        15      ball      NaN  1.5  0.00  0.1  0.00                1          0                 -1.0  1916.019280  0.076284            15
-    115        16      ball      NaN  1.6  0.00  0.1  0.00                1          0                 -1.0  1922.945790  0.078280            16
-    116        17      ball      NaN  1.7  0.00  0.1  0.00                1          0                 -1.0  1926.031171  0.077382            17
-    117        18      ball      NaN  1.8  0.00  0.1  0.00                1          0                 -1.0  1934.867991  0.076520            18
-    118        19      ball      NaN  1.9  0.00  0.1  0.00                1          0                 -1.0  1081.484989  0.073956            19
+         frame_id player_id  team_id    x     y   vx    vy  ball_possession  period_id  attacking_direction           AS       DAS  simulation_index
+    0           0         A      0.0 -0.1  0.00  0.1  0.05                0          0                  1.0  4479.436833  2.235315                 0
+    1           1         A      0.0  0.0  0.05  0.1  0.05                0          0                  1.0  4511.233023  2.253153                 1
+    2           2         A      0.0  0.1  0.10  0.1  0.05                0          0                  1.0  4502.846128  2.227248                 2
+    3           3         A      0.0  0.2  0.15  0.1  0.05                0          0                  1.0  4495.100201  2.198680                 3
+    4           4         A      0.0  0.3  0.20  0.1  0.05                0          0                  1.0  4474.157453  2.109178                 4
+    ..        ...       ...      ...  ...   ...  ...   ...              ...        ...                  ...          ...       ...               ...
+    114        15      ball      NaN  1.5  0.00  0.1  0.00                1          0                 -1.0  1916.019280  0.076284                15
+    115        16      ball      NaN  1.6  0.00  0.1  0.00                1          0                 -1.0  1922.945790  0.078280                16
+    116        17      ball      NaN  1.7  0.00  0.1  0.00                1          0                 -1.0  1926.031171  0.077382                17
+    117        18      ball      NaN  1.8  0.00  0.1  0.00                1          0                 -1.0  1934.867991  0.076520                18
+    118        19      ball      NaN  1.9  0.00  0.1  0.00                1          0                 -1.0  1081.484989  0.073956                19
     <BLANKLINE>
     [119 rows x 13 columns]
     """
