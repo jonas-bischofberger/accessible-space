@@ -92,6 +92,6 @@ if __name__ == '__main__':
     importlib.reload(accessible_space.core)
     importlib.reload(accessible_space.validation)
 
-    accessible_space.tests.test_model_plausibility.test_das_gained()
+    # accessible_space.tests.test_model_plausibility.test_das_gained()
     # accessible_space.validation_dashboard()
-    # readme()
+    readme()

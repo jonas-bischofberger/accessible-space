@@ -696,8 +696,8 @@ def as_dangerous_result(result, danger, danger_weight=None):
              7.06303366e-05, 5.70659490e-05, 4.94660755e-05, 4.05506393e-05,
              3.43581543e-05]]])
     """
-    def weighted_multiplication(x, y, weight=danger_weight):
-        return x**(1/weight) * y**weight if weight is not None else x * y  # TODO use a variant that ensures that the maximum is still 105*68
+    def weighted_multiplication(_danger, _space, weight=danger_weight):
+        return (_danger ** (1 / weight)) * _space if weight is not None else _danger * _space
 
     return result._replace(
         attack_cum_poss=None,

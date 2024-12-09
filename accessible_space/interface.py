@@ -765,7 +765,6 @@ def infer_playing_direction(
 ):
     """
     Automatically infer playing direction based on the mean x position of each teams in each period.
-    TODO idk if i like the syntax that you have to pass all the column names as individual parameters -> maybe dict?
 
     >>> df_tracking = pd.DataFrame({"period": [0, 0, 1, 1], "team_id": ["H", "A", "H", "A"], "team_in_possession": ["H", "H", "A", "A"], "x": [1, 2, 3, 4], "y": [5, 6, 7, 8]})
     >>> df_tracking

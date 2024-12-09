@@ -4,3 +4,4 @@ pytest-cov
 build
 twine
 setuptools
+tox

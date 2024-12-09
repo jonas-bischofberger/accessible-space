@@ -12,19 +12,27 @@ dependencies = [
     "pandas<2.0.0",
     "numpy<1.25.0",
     "scipy",
+
     "scikit-learn",
     "kloppy>=3.15.0",
     "xmltodict",
     "joblib",
     "streamlit",  # >= 1.40.2
     "tqdm",
+
+    "pytest",
+    "pytest-cov",
+    "build",
+    "twine",
+    "setuptools",
+    "tox",
 ]
 
 [project.urls]
 Repository = "https://github.com/jonas-bischofberger/accessible-space"
 
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
