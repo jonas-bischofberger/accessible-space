@@ -171,16 +171,42 @@ def test_coordinate_systems():
 def test_das_gained():
     from .resources import df_passes, df_tracking
 
-    ret_safe = accessible_space.get_das_gained(df_passes, df_tracking)
-    df_passes["DAS_gained"] = ret_safe.das_gained
-    df_passes["AS_gained"] = ret_safe.as_gained
-    df_passes["AS"] = ret_safe.acc_space
-    df_passes["DAS"] = ret_safe.das
-    df_passes["AS_reception"] = ret_safe.acc_space_reception
-    df_passes["DAS_reception"] = ret_safe.das_reception
+    ret_das_gained = accessible_space.get_das_gained(df_passes, df_tracking)
+    df_passes["DAS_gained"] = ret_das_gained.das_gained
+    df_passes["AS_gained"] = ret_das_gained.as_gained
+    df_passes["AS"] = ret_das_gained.acc_space
+    df_passes["DAS"] = ret_das_gained.das
+    df_passes["AS_reception"] = ret_das_gained.acc_space_reception
+    df_passes["DAS_reception"] = ret_das_gained.das_reception
+    df_passes["frame_index"] = ret_das_gained.frame_index
+    df_passes["target_frame_index"] = ret_das_gained.target_frame_index
 
-    st.write("df_passes")
-    st.write(df_passes)
+    assert df_passes.apply(lambda row: row["frame_index"] != row["target_frame_index"], axis=1).all()
+
+    i_unsuccessful = df_passes["pass_outcome"] == 0
+    i_successful = df_passes["pass_outcome"] == 1
+
+    assert (df_passes.loc[i_unsuccessful, "DAS_gained"] < 0).all()
+    assert (df_passes.loc[i_unsuccessful, "AS_gained"] < 0).all()
+
+    assert (df_passes.loc[i_successful, "DAS_gained"] == df_passes.loc[i_successful, "DAS_reception"] - df_passes.loc[i_successful, "DAS"]).all()
+
+    ret_das = accessible_space.get_dangerous_accessible_space(df_tracking)
+    df_tracking["DAS"] = ret_das.das
+    df_tracking["AS"] = ret_das.acc_space
+
+    for _, p4ss in df_passes.iterrows():
+        df_tracking_frame = df_tracking[df_tracking["frame_id"] == p4ss["frame_id"]]
+        assert p4ss["DAS"] == df_tracking_frame["DAS"].iloc[0]
+        assert p4ss["AS"] == df_tracking_frame["AS"].iloc[0]
+
+        df_tracking_target_frame = df_tracking[df_tracking["frame_id"] == p4ss["target_frame_id"]]
+        if p4ss["pass_outcome"] == 1:
+            assert p4ss["DAS_reception"] == df_tracking_target_frame["DAS"].iloc[0]
+            assert p4ss["AS_reception"] == df_tracking_target_frame["AS"].iloc[0]
+        else:
+            assert p4ss["DAS_reception"] == 0
+            assert p4ss["AS_reception"] == 0
 
 
 def test_chunk_wise_simulation():

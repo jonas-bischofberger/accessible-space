@@ -218,7 +218,7 @@ def get_das_gained(
 
     # Tracking data schema - pass these parameters according to your data
     tracking_frame_col="frame_id", tracking_player_col="player_id", tracking_team_col="team_id",
-    tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", tracking_v_col=None,
+    tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy",
     tracking_team_in_possession_col="team_in_possession",
     ball_tracking_player_id="ball", tracking_attacking_direction_col=None,
     tracking_period_col=_unset, tracking_passer_to_exclude_col=None,
@@ -228,25 +228,60 @@ def get_das_gained(
 
     # Options
     infer_attacking_direction=True,
-    clip_to_pitch=True,
-    use_event_coordinates_as_ball_position=False,
+    danger_weight=2,
     chunk_size=200,
+    return_cropped_result=False,
     additional_fields_to_return=(
-    "attack_cum_prob", "attack_cum_poss", "attack_prob_density", "attack_poss_density", "defense_cum_prob",
-    "defense_cum_poss", "defense_prob_density", "defense_poss_density", "cum_p0", "p0_density", "player_cum_prob",
-    "player_cum_poss", "player_prob_density", "player_poss_density"),  # Set to None to speed up calculation
+        "attack_cum_prob",
+        "attack_cum_poss",
+        "attack_prob_density",
+        "attack_poss_density",
+        "defense_cum_prob",
+        "defense_cum_poss",
+        "defense_prob_density",
+        "defense_poss_density",
+        "cum_p0",
+        "p0_density",
+        "player_cum_prob",
+        "player_cum_poss",
+        "player_prob_density",
+        "player_poss_density"
+    ),  # Set to None to speed up calculation
+
+    # DAS Parameters
+    n_angles=_DEFAULT_N_ANGLES_FOR_DAS,
+    phi_offset=_DEFAULT_PHI_OFFSET,
+    n_v0=_DEFAULT_N_V0_FOR_DAS,
+    v0_min=_DEFAULT_V0_MIN_FOR_DAS,
+    v0_max=_DEFAULT_V0_MAX_FOR_DAS,
+
+    # Simulation parameters
+    pass_start_location_offset=_DEFAULT_PASS_START_LOCATION_OFFSET,
+    time_offset_ball=_DEFAULT_TIME_OFFSET_BALL,
+    radial_gridsize=_DEFAULT_RADIAL_GRIDSIZE,
+    b0=_DEFAULT_B0,
+    b1=_DEFAULT_B1,
+    player_velocity=_DEFAULT_PLAYER_VELOCITY,
+    keep_inertial_velocity=_DEFAULT_KEEP_INERTIAL_VELOCITY,
+    use_max=_DEFAULT_USE_MAX,
+    v_max=_DEFAULT_V_MAX,
+    a_max=_DEFAULT_A_MAX,
+    inertial_seconds=_DEFAULT_INERTIAL_SECONDS,
+    tol_distance=_DEFAULT_TOL_DISTANCE,
+    use_approx_two_point=_DEFAULT_USE_APPROX_TWO_POINT,
+    v0_prob_aggregation_mode=_DEFAULT_V0_PROB_AGGREGATION_MODE,
+    normalize=_DEFAULT_NORMALIZE,
+    use_efficient_sigmoid=_DEFAULT_USE_EFFICIENT_SIGMOID,
 ):
-    import streamlit as st
     df_passes = df_passes.copy()
     df_passes[event_success_col] = df_passes[event_success_col].astype(int)
 
-    # TODO implement 0 when unsuccessful, write tests etc
-
-    df_tracking_passes = df_passes[["event_string", event_frame_col, event_target_frame_col, event_success_col]].merge(df_tracking, left_on=event_frame_col, right_on=tracking_frame_col, how="left")
-    df_tracking_receptions = df_passes[["event_string", event_target_frame_col, event_success_col]].merge(df_tracking, left_on=event_target_frame_col, right_on=tracking_frame_col, how="left")
+    relevant_frames = set(df_passes[event_frame_col].tolist() + df_passes[event_target_frame_col].tolist())
+    df_tracking_passes_and_receptions = df_tracking[df_tracking[tracking_frame_col].isin(relevant_frames)].copy()
 
     ret = get_dangerous_accessible_space(
-        df_tracking_passes, frame_col=tracking_frame_col, player_col=tracking_player_col, team_col=tracking_team_col,
+        df_tracking_passes_and_receptions,
+        frame_col=tracking_frame_col, player_col=tracking_player_col, team_col=tracking_team_col,
         x_col=tracking_x_col, y_col=tracking_y_col, vx_col=tracking_vx_col, vy_col=tracking_vy_col,
         possession_team_col=tracking_team_in_possession_col, ball_player_id=ball_tracking_player_id,
         attacking_direction_col=tracking_attacking_direction_col, period_col=tracking_period_col,
@@ -268,7 +303,7 @@ def get_das_gained(
         v0_max=v0_max,
 
         # Simulation parameters
-        pass_start_location_offset=_DEFpass_start_location_offsetAULT_PASS_START_LOCATION_OFFSET,
+        pass_start_location_offset=pass_start_location_offset,
         time_offset_ball=time_offset_ball,
         radial_gridsize=radial_gridsize,
         b0=b0,
@@ -285,33 +320,36 @@ def get_das_gained(
         normalize=normalize,
         use_efficient_sigmoid=use_efficient_sigmoid,
     )
-    df_tracking_passes["AS"] = ret.acc_space
-    df_tracking_passes["DAS"] = ret.das
-    df_tracking_passes = df_tracking_passes.drop_duplicates(subset=[event_frame_col])
-    frame_to_das = df_tracking_passes.groupby(event_frame_col)["DAS"].first()
-    frame_to_as = df_tracking_passes.groupby(event_frame_col)["AS"].first()
+    df_tracking_passes_and_receptions["DAS"] = ret.das
+    df_tracking_passes_and_receptions["AS"] = ret.acc_space
+    df_tracking_passes_and_receptions["frame_index"] = ret.frame_index
 
-    ret_rec = get_dangerous_accessible_space(df_tracking_receptions)
-    df_tracking_receptions["AS"] = ret_rec.acc_space
-    df_tracking_receptions["DAS"] = ret_rec.das
-    i_unsuccessful = df_tracking_receptions[event_success_col] == 0
-    df_tracking_receptions.loc[i_unsuccessful, "AS"] = 0
-    df_tracking_receptions.loc[i_unsuccessful, "DAS"] = 0
-    df_tracking_receptions = df_tracking_receptions.drop_duplicates(subset=[event_target_frame_col])
-    frame_to_rec_das = df_tracking_receptions.groupby(event_target_frame_col)["DAS"].first()
-    frame_to_rec_as = df_tracking_receptions.groupby(event_target_frame_col)["AS"].first()
+    fr2das = df_tracking_passes_and_receptions[[tracking_frame_col, "DAS"]].set_index(tracking_frame_col)["DAS"].to_dict()
+    fr2as = df_tracking_passes_and_receptions[[tracking_frame_col, "AS"]].set_index(tracking_frame_col)["AS"].to_dict()
+    fr2index = df_tracking_passes_and_receptions[[tracking_frame_col, "frame_index"]].set_index(tracking_frame_col)["frame_index"].to_dict()
 
-    ReturnValueDASGained = collections.namedtuple("ReturnValueDASGained", ["acc_space", "das", "acc_space_reception", "das_reception", "as_gained", "das_gained"])
+    das = df_passes[event_frame_col].map(fr2das)
+    acc_space = df_passes[event_frame_col].map(fr2as)
+    frame_index = df_passes[event_frame_col].map(fr2index)
+    target_frame_index = df_passes[event_target_frame_col].map(fr2index)
+    das_reception = df_passes[event_target_frame_col].map(fr2das)
+    acc_space_reception = df_passes[event_target_frame_col].map(fr2as)
+
+    # Unsuccessful passes = All (D)AS is lost.
+    i_unsuccessful = df_passes[event_success_col] == 0
+    das_reception[i_unsuccessful] = 0
+    acc_space_reception[i_unsuccessful] = 0
+
+    ReturnValueDASGained = collections.namedtuple("ReturnValueDASGained", ["acc_space", "das", "acc_space_reception", "das_reception", "as_gained", "das_gained", "simulation_result", "frame_index", "target_frame_index"])
     res = ReturnValueDASGained(
-        acc_space=df_passes[event_frame_col].map(frame_to_as),
-        das=df_passes[event_frame_col].map(frame_to_das),
-        acc_space_reception=df_passes[event_target_frame_col].map(frame_to_rec_as),
-        das_reception=df_passes[event_target_frame_col].map(frame_to_rec_das),
-        as_gained=None, das_gained=None,
+        acc_space=acc_space,
+        das=das,
+        acc_space_reception=acc_space_reception,
+        das_reception=das_reception,
+        as_gained=acc_space_reception - acc_space, das_gained=das_reception - das,
+        simulation_result=ret, frame_index=frame_index, target_frame_index=target_frame_index
     )
-    res = res._replace(as_gained=res.acc_space_reception - res.acc_space, das_gained=res.das_reception - res.das)
     return res
-
 
 
 def get_expected_pass_completion(

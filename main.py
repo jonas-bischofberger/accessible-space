@@ -16,14 +16,20 @@ def readme():
     df_passes["xC"] = pass_result.xc  # Expected pass completion rate
     print(df_passes[["event_string", "xC"]])
 
-    ### 2. Add Dangerous Accessible Space to tracking frames
-    pitch_result = accessible_space.get_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", possession_team_col="team_in_possession")
+    ### 2. Add DAS Gained to passes
+    das_gained_result = accessible_space.get_das_gained(df_passes, df_tracking, event_frame_col="frame_id", event_success_col="pass_outcome", event_target_frame_col="target_frame_id", tracking_frame_col="frame_id", tracking_period_col="period_id", tracking_player_col="player_id", tracking_team_col="team_id", tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", tracking_team_in_possession_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34)
+    df_passes["DAS_Gained"] = das_gained_result.das_gained
+    df_passes["AS_Gained"] = das_gained_result.as_gained
+    print(df_passes[["event_string", "DAS_Gained", "AS_Gained"]])
+
+    ### 3. Add Dangerous Accessible Space to tracking frames
+    pitch_result = accessible_space.get_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", possession_team_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34)
     df_tracking["AS"] = pitch_result.acc_space  # Accessible space
     df_tracking["DAS"] = pitch_result.das  # Dangerous accessible space
     print(df_tracking[["frame_id", "team_in_possession", "AS", "DAS"]].drop_duplicates())
 
-    ### 3. Access raw simulation results
-    # Example 3.1: Expected interception rate = last value of the cumulative interception probability of the defending team
+    ### 4. Access raw simulation results
+    # Example 4.1: Expected interception rate = last value of the cumulative interception probability of the defending team
     pass_result = accessible_space.get_expected_pass_completion(df_passes, df_tracking)
     pass_frame = 0  # We consider the pass at frame 0
     df_passes["frame_index"] = pass_result.event_frame_index  # frame_index implements a mapping from original frame number to indexes of the numpy arrays in the raw simulation_result.
@@ -32,7 +38,7 @@ def readme():
     expected_interception_rate = pass_result.simulation_result.defense_cum_prob[frame_index, 0, -1]  # Frame x Angle x Distance
     print(f"Expected interception rate: {expected_interception_rate:.1%}")
 
-    # Example 3.2: Plot accessible space and dangerous accessible space
+    # Example 4.2: Plot accessible space and dangerous accessible space
     df_tracking["frame_index"] = pitch_result.frame_index
 
     def plot_constellation(df_tracking_frame):
@@ -56,7 +62,7 @@ def readme():
     plt.title(f"Dangerous accessible space: {df_tracking_frame['DAS'].iloc[0]:.2f} m²")
     plt.show()
 
-    # Example 3.3: Get (dangerous) accessible space of individual players
+    # Example 4.3: Get (dangerous) accessible space of individual players
     df_tracking["player_index"] = pitch_result.player_index  # Mapping from player to index in simulation_result
     areas = accessible_space.integrate_surfaces(pitch_result.simulation_result)  # Calculate surface integrals
     dangerous_areas = accessible_space.integrate_surfaces(pitch_result.dangerous_result)
