@@ -98,6 +98,5 @@ python -m pytest --doctest-modules path/to/accessible_space/
 ### Known issues (feel free to improve upon them)
 
 - Offside players should have an interception rate of 0 - this functionality is not implemented yet.
-- The package assumes the coordinate system [[-52.5, 52.5], [-34, 34]]. If you use a different coordinate system, it is usually easy to transform your coordinates into this system.
 - This model doesn't simulate high passes, which is a significant limitation. If you have an idea how to add it, feel free to do so!
 - Probabilities and possibilities are not fully normalized yet, i.e. probabilities generally do not sum to 1, possibilities may exceed 1, etc. This is because of numerical errors. Normalizing the prob-/possibilities is a difficult problem because it has to be done w.r.t two different axes (along the ball trajectory and across players) while maintaining temporal dependencies. Due to the difficulty, it is currently only partially implemented for the possibility density and cumulative possibility.
