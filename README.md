@@ -1,6 +1,6 @@
 # Accessible space
 
-This package implements the Dangerous Accessible Space (DAS) model for football analytics.
+This package implements the Dangerous Accessible Space (DAS) model for football analytics. It includes a physical pass simulation that can be run for all locations on the pitch to obtain the area that a team can access by a pass.
 
 
 ### Install package
@@ -9,33 +9,42 @@ This package implements the Dangerous Accessible Space (DAS) model for football 
 pip install accessible-space
 ```
 
-### Usage example
+### Usage examples
 
-The package has a simple pandas interface that you can use to add xC (Expected completion) and team-level DAS (Dangerous accessible space) and AS (Accessible space) to your data. You only need to pass your dataframes and the schema of your data.
+The package has a simple pandas interface that you can use to add...
+- xC (Expected completion): The expected probability that a pass is completed. Measures the risk of a pass.
+- DAS (Dangerous accessible space) and AS (Accessible space): The (dangerous) area on the pitch that a team controls. DAS represents the value of a situation based on the amount of dangerous space that is accessible to the attacking team.
+- DAS Gained: The increase in DAS through a pass. Measures the reward of a pass.
+
+You only need to pass your dataframes and the schema of your data.
 
 ```python
 import accessible_space
 from accessible_space.tests.resources import df_passes, df_tracking  # Example data
 import matplotlib.pyplot as plt
 
-### 1. Add expected completion rate to passes
+### Example 1. Add expected completion rate to passes
 pass_result = accessible_space.get_expected_pass_completion(df_passes, df_tracking, event_frame_col="frame_id", event_player_col="player_id", event_team_col="team_id", event_start_x_col="x", event_start_y_col="y", event_end_x_col="x_target", event_end_y_col="y_target", tracking_frame_col="frame_id", tracking_player_col="player_id", tracking_team_col="team_id", tracking_team_in_possession_col="team_in_possession", tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", ball_tracking_player_id="ball")
 df_passes["xC"] = pass_result.xc  # Expected pass completion rate
 print(df_passes[["event_string", "xC"]])
 
-### 2. Add DAS Gained to passes
+### Example 2. Add DAS Gained to passes
 das_gained_result = accessible_space.get_das_gained(df_passes, df_tracking, event_frame_col="frame_id", event_success_col="pass_outcome", event_target_frame_col="target_frame_id", tracking_frame_col="frame_id", tracking_period_col="period_id", tracking_player_col="player_id", tracking_team_col="team_id", tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", tracking_team_in_possession_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34)
 df_passes["DAS_Gained"] = das_gained_result.das_gained
 df_passes["AS_Gained"] = das_gained_result.as_gained
 print(df_passes[["event_string", "DAS_Gained", "AS_Gained"]])
 
-### 3. Add Dangerous Accessible Space to tracking frames
+### Example 3. Add Dangerous Accessible Space to tracking frames
 pitch_result = accessible_space.get_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", possession_team_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34)
 df_tracking["AS"] = pitch_result.acc_space  # Accessible space
 df_tracking["DAS"] = pitch_result.das  # Dangerous accessible space
 print(df_tracking[["frame_id", "team_in_possession", "AS", "DAS"]].drop_duplicates())
+```
 
-### 4. Access raw simulation results
+For even more advanced analytics, you can access the raw simulation results on team- and player-level.
+
+```python
+### Example 4. Access raw simulation results
 # Example 4.1: Expected interception rate = last value of the cumulative interception probability of the defending team
 pass_result = accessible_space.get_expected_pass_completion(df_passes, df_tracking)
 pass_frame = 0  # We consider the pass at frame 0
