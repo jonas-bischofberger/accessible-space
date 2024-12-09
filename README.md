@@ -5,7 +5,7 @@ This package implements the Dangerous Accessible Space (DAS) model for football 
 
 ### Install package
 
-```
+```bash
 pip install accessible-space
 ```
 
@@ -13,7 +13,7 @@ pip install accessible-space
 
 The package has a simple pandas interface that you can use to add xC (Expected completion) and team-level DAS (Dangerous accessible space) and AS (Accessible space) to your data. You only need to pass your dataframes and the schema of your data.
 
-```
+```python
 ### 1. Add expected completion rate to passes
 pass_result = accessible_space.get_expected_pass_completion(df_passes, df_tracking, event_frame_col="frame_id", event_player_col="player_id", event_team_col="team_id", event_start_x_col="x", event_start_y_col="y", event_end_x_col="x_target", event_end_y_col="y_target", tracking_frame_col="frame_id", tracking_player_col="player_id", tracking_team_col="team_id", tracking_team_in_possession_col="team_in_possession", tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", ball_tracking_player_id="ball")
 df_passes["xC"] = pass_result.xc  # Expected pass completion rate
@@ -34,7 +34,7 @@ print(df_tracking[["frame_id", "team_in_possession", "AS", "DAS"]].drop_duplicat
 
 For even more advanced analyses that leverage the full capabilities of the model, you can also access the raw simulation results.
 
-```
+```python
 ### 4. Access raw simulation results
 # Example 4.1: Expected interception rate = last value of the cumulative interception probability of the defending team
 pass_result = accessible_space.get_expected_pass_completion(df_passes, df_tracking)
@@ -90,8 +90,8 @@ for _, row in df_tracking[(df_tracking["frame_id"] == 0) & (df_tracking["player_
 
 ### Run tests
 
-```
-python -m pytest --doctest-modules path/to/accessible_space/
+```bash
+python -m pytest path/to/accessible_space/
 ```
 
 
