@@ -2,13 +2,19 @@ from setuptools import setup, find_packages
 
 setup(
     name="accessible-space",
-    version="0.1",
+    version="0.1.6",
     packages=find_packages(),
     install_requires=[
         "matplotlib",
         "pandas<2.0.0",
         "numpy<1.25.0",
         "scipy",
+        "scikit-learn",
+        "kloppy>=3.15.0",
+        "xmltodict",
+        "joblib",
+        "streamlit",  # >= 1.40.2
+        "tqdm",
     ],
     author="Jonas Bischofberger",
     author_email="jonasbischofberger@web.de",
