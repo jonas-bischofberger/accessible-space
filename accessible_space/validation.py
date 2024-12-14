@@ -9,7 +9,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
 import joblib
-import kloppy.metrica
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -37,8 +36,17 @@ metrica_open_data_base_dir = "https://raw.githubusercontent.com/metrica-sports/s
 
 @memory.cache
 def get_metrica_tracking_data(dataset_nr):
-    dataset = kloppy.metrica.load_open_data(dataset_nr)  # , limit=100)
-    df_tracking = dataset.to_df()
+    # TODO remove kloppy dependency
+    home_data_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Home_Team.csv"
+    away_data_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Away_Team.csv"
+    df_tracking_home = pd.read_csv(home_data_url)
+    df_tracking_away = pd.read_csv(away_data_url)
+    df_tracking_home["team_id"] = "Home"
+    df_tracking_away["team_id"] = "Away"
+    df_tracking = pd.concat([df_tracking_home, df_tracking_away])
+
+    # dataset = kloppy.metrica.load_open_data(dataset_nr)  # , limit=100)
+    # df_tracking = dataset.to_df()
     return df_tracking
 
 
@@ -46,8 +54,7 @@ def get_metrica_tracking_data(dataset_nr):
 def get_kloppy_events(dataset_nr):
     if dataset_nr in [1, 2]:
         # df = pd.read_csv(f"C:/Users/Jonas/Desktop/ucloud/Arbeit/Spielanalyse/soccer-analytics/football1234/datasets/metrica/sample-data-master/data/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawEventsData.csv")
-        df = pd.read_csv(
-            f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawEventsData.csv")
+        df = pd.read_csv(f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawEventsData.csv")
         df["body_part_type"] = df["Subtype"].where(df["Subtype"].isin(["HEAD"]), None)
         df["set_piece_type"] = df["Subtype"].where(
             df["Subtype"].isin(["THROW IN", "GOAL KICK", "FREE KICK", "CORNER KICK"]), None).map(
@@ -427,7 +434,7 @@ def add_synthetic_passes(
     df_synthetic_passes = pd.DataFrame(synthetic_passes)
 
     assert len(
-        df_synthetic_passes) == n_synthetic_passes, f"len(df_synthetic_passes)={len(df_synthetic_passes)} != n_synthetic_passes={n_synthetic_passes}, ({len(synthetic_passes)=}"
+        df_synthetic_passes) == n_synthetic_passes, f"len(df_synthetic_passes)={len(df_synthetic_passes)} != n_synthetic_passes={n_synthetic_passes}, (len(synthetic_passes)={len(synthetic_passes)}"
 
     return pd.concat([df_passes, df_synthetic_passes], axis=0)
 
@@ -510,7 +517,7 @@ def get_scores(_df, baseline_accuracy, outcome_col="success"):
 
 
 def bin_nr_calibration_plot(df, prediction_col="xc", outcome_col="success", n_bins=None, binsize=None, add_text=True):
-    bin_col = get_unused_column_name(df, "bin")
+    bin_col = get_unused_column_name(df.columns, "bin")
     if binsize is None and n_bins is not None:
         df[bin_col] = pd.qcut(df[prediction_col], n_bins, labels=False, duplicates="drop")
     elif binsize is not None and n_bins is None:
@@ -634,7 +641,7 @@ def validate_multiple_matches(
     dfs_test = []
     for dataset_nr, df_passes in enumerate(dfs_passes_with_synthetic):
         df_passes = df_passes.copy()
-        dataset_nr_col = get_unused_column_name(df_passes, "dataset_nr")
+        dataset_nr_col = get_unused_column_name(df_passes.columns, "dataset_nr")
         df_passes[dataset_nr_col] = dataset_nr
         df_passes["stratification_var"] = df_passes[outcome_col].astype(str) + "_" + df_passes["is_synthetic"].astype(str)
 

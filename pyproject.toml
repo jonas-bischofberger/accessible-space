@@ -7,17 +7,21 @@ authors = [
 description = "Implementation of the Dangerous Accessible Space (DAS) passing model for football analytics."
 readme = "README.md"
 license = {file = "LICENSE"}
+requires-python = ">=3.7"
 dependencies = [
     "matplotlib",
-    "pandas<2.0.0",
-    "numpy<1.25.0",
+    "pandas",
+    "numpy",
+#    "pandas<2.0.0",
+#    "numpy<1.25.0",
     "scipy",
 
     "scikit-learn",
-    "kloppy>=3.15.0",
+#    "kloppy>=3.15.0",
     "xmltodict",
     "joblib",
-    "streamlit",  # >= 1.40.2
+    "streamlit",
+    "wfork-streamlit-profiler",  # streamlit_profiler seems incompatible with newer Python versions
     "tqdm",
 
     "pytest",
@@ -27,15 +31,42 @@ dependencies = [
     "setuptools",
     "tox",
 ]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+
+[project.optional-dependencies]
+core = ["pandas", "numpy", "scipy", "matplotlib"]
+# TODO test core, try out "strict"/"validation" (pinned versions?), "dev"
+
 
 [project.urls]
 Repository = "https://github.com/jonas-bischofberger/accessible-space"
+
 
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+
 [tool.pytest.ini_options]
-addopts = "--doctest-modules --cov=accessible_space"
-filterwarnings = "ignore:Inferring attacking direction but 'period_col' is unset. If you have data across multiple halfs, specify 'period_col', otherwise pass 'period_col'=None.:UserWarning"  # Our test data has no periods
+addopts = "--doctest-modules --cov=accessible_space --doctest-continue-on-failure"
+filterwarnings = """
+    ignore:Inferring attacking direction:UserWarning
+    ignore:Range of tracking Y coordinates:UserWarning
+    ignore:Range of tracking X coordinates:UserWarning
+"""
+#filterwarnings = """
+#    ignore:Inferring attacking direction but 'period_col' is unset. If you have data across multiple halfs, specify 'period_col', otherwise pass 'period_col'=None.:UserWarning
+#    ignore:Range of tracking Y coordinates (0.0 to 0.0) is very small. Make sure your coordinates are in meters.:UserWarning
+#    ignore:Range of tracking Y coordinates (0 to 0) is very small. Make sure your coordinates are in meters.:UserWarning
+#"""
 norecursedirs = ".joblib-cache"

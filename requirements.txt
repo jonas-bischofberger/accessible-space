@@ -1,7 +1,0 @@
--r requirements-core.txt
-scikit-learn
-kloppy>=3.15.0
-xmltodict
-joblib
-streamlit  # >= 1.40.2
-tqdm

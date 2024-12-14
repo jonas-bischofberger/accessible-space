@@ -1,5 +1,8 @@
 import colorsys
 import numpy as np
+import pandas as pd
+import tqdm
+import streamlit as st
 
 
 class _Sentinel:
@@ -7,21 +10,49 @@ class _Sentinel:
         return isinstance(other, _Sentinel)
 
 
-_unset = _Sentinel()
+_unset = _Sentinel()  # To explicitly differentiate between a default None and a user-set None
 
 
-def get_unused_column_name(df, prefix):
+def _progress_bar(iterable, update_interval=1, **kwargs):
+    """
+    >>> for i in _progress_bar(range(100)):
+    ...     pass
+    """
+    try:
+        total = kwargs["total"]
+        kwargs.pop("total")
+    except KeyError:
+        try:
+            total = len(iterable)
+        except TypeError:
+            total = None
+
+    def _get_progress_text_without_progress_bar(console_progress_bar):
+        return str(console_progress_bar).replace("█", "").replace("▌", "").replace("▊", "").replace("▍", "").replace("▋", "").replace("▉", "").replace("▏", "").replace("▎", "")
+
+    console_progress_bar = tqdm.tqdm(iterable, total=total, **kwargs)#CustomTqdm(**kwargs)
+    st.empty()
+    streamlit_progress_bar = st.progress(0)
+    streamlit_progress_bar.progress(0, text=_get_progress_text_without_progress_bar(console_progress_bar))
+    for i, item in enumerate(console_progress_bar):
+        yield item
+        if i % update_interval == 0:
+            streamlit_progress_bar.progress((i + 1) / total, text=_get_progress_text_without_progress_bar(console_progress_bar))
+    streamlit_progress_bar.progress(0.999, text=_get_progress_text_without_progress_bar(console_progress_bar))
+
+
+def get_unused_column_name(existing_columns, prefix):
     """
     >>> import pandas as pd
     >>> df = pd.DataFrame({"Team": [1, 2], "Player": [3, 4]})
-    >>> get_unused_column_name(df, "Stadium")
+    >>> get_unused_column_name(df.columns, "Stadium")
     'Stadium'
-    >>> get_unused_column_name(df, "Team")
+    >>> get_unused_column_name(df.columns, "Team")
     'Team_1'
     """
     i = 1
     new_column_name = prefix
-    while new_column_name in df.columns:
+    while new_column_name in existing_columns:
         new_column_name = f"{prefix}_{i}"
         i += 1
     return new_column_name
@@ -73,3 +104,31 @@ def _adjust_saturation(color, saturation):
     """
     h, l, s = colorsys.rgb_to_hls(*color)
     return colorsys.hls_to_rgb(h, l, saturation)
+
+
+def _replace_column_values_except_nans(df_target, target_key_col, target_col, df_source, source_key_col, source_col):
+    """
+    >>> df = pd.DataFrame({"key": [2, np.nan, 4, 5], "a": [np.nan, 2, np.nan, 4]})
+    >>> df2 = pd.DataFrame({"another_key": [1, np.nan, 3, 4, 5], "b": [12, 13, np.nan, np.nan, 16]})
+    >>> _replace_column_values_except_nans(df, "key", "a", df2, "another_key", "b")
+       key     a
+    0  2.0   NaN
+    1  NaN   2.0
+    2  4.0   NaN
+    3  5.0  16.0
+    """
+    assert target_key_col in df_target.columns, f"{target_key_col} not in {df_target.columns}"
+    assert target_col in df_target.columns, f"{target_col} not in {df_target.columns}"
+    assert source_key_col in df_source.columns, f"{source_key_col} not in {df_source.columns}"
+    assert source_col in df_source.columns, f"{source_col} not in {df_source.columns}"
+
+    df_target = df_target.copy()
+
+    key2source_value = df_source[~df_source[source_key_col].isna()].set_index(source_key_col)[source_col].to_dict()
+
+    def _foo(row):
+        target_key = row[target_key_col]
+        return key2source_value[target_key] if target_key in key2source_value and not pd.isna(key2source_value[target_key]) else row[target_col]
+
+    df_target[target_col] = df_target.apply(_foo, axis=1)
+    return df_target

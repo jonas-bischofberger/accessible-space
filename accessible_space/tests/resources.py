@@ -1,9 +1,11 @@
 import pandas as pd
 
+
 def generate_smooth_positions(start_x, start_y, vx, vy, n_frames):
     x_positions = [start_x + i * vx for i in range(n_frames)]
     y_positions = [start_y + i * vy for i in range(n_frames)]
     return x_positions, y_positions
+
 
 # Create tracking data for all players and ball
 n_frames = 20
@@ -32,12 +34,13 @@ df_passes = pd.DataFrame({
     "frame_id": [0, 6, 14],
     "target_frame_id": [6, 9, 16],
     "player_id": ["A", "B", "C"],  # Players making the passes
-    "receiver_id": ["B", "X", "Y"],  # Intended receivers
-    "team_id": ["Home", "Home", "Home"],  # Team of players making the passes
-    "x": [-0.1, -9.6, -13.8],  # X coordinate where the pass is made
-    "y": [0, 10.5, -12.9],  # Y coordinate where the pass is made
+    "receiver_id": ["B", "X", "Y"],
+    "team_id": ["Home", "Home", "Home"],
+    "x": [-0.1, 25, -13.8],  # X coordinate where the pass is made
+    "y": [0, 30, 40.1],  # Y coordinate where the pass is made
     "x_target": [20, 15, 49],  # X target of the pass (location of receiver)
     "y_target": [30, 30, -1],  # Y target of the pass (location of receiver)
-    "pass_outcome": [1, 0, 0]  # Correct pass outcomes
+    "pass_outcome": [1, 0, 0],  # Correct pass outcomes
+    "receiver_team_id": ["Home", "Away", "Away"],
 })
 df_passes["event_string"] = df_passes.apply(lambda row: f"{row['frame_id']}: Pass {row['player_id']} -> {row['receiver_id']} ({row['pass_outcome']})", axis=1)

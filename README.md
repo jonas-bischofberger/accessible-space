@@ -2,6 +2,7 @@
 
 This package implements the Dangerous Accessible Space (DAS) model for football analytics. It includes a physical pass simulation that can be run for all locations on the pitch to obtain the area that a team can access by a pass.
 
+Compatible with Python >= 3.7.
 
 ### Install package
 
@@ -35,7 +36,7 @@ df_passes["AS_Gained"] = das_gained_result.as_gained
 print(df_passes[["event_string", "DAS_Gained", "AS_Gained"]])
 
 ### Example 3. Add Dangerous Accessible Space to tracking frames
-pitch_result = accessible_space.get_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", possession_team_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34)
+pitch_result = accessible_space.get_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", team_in_possession_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34)
 df_tracking["AS"] = pitch_result.acc_space  # Accessible space
 df_tracking["DAS"] = pitch_result.das  # Dangerous accessible space
 print(df_tracking[["frame_id", "team_in_possession", "AS", "DAS"]].drop_duplicates())

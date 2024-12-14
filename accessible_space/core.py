@@ -4,11 +4,12 @@ import sys
 
 import numpy as np
 import scipy.integrate
-import streamlit as st
+# import streamlit as st
 
 from .motion_models import constant_velocity_time_to_arrive_1d, approx_two_point_time_to_arrive, constant_velocity_time_to_arrive
+from .utility import _progress_bar
 
-# Result object to hold simulation results
+# SimulationResult object to hold simulation results
 _result_fields = [
     "attack_cum_prob",  # F x PHI x T
     "attack_cum_poss",  # F x PHI x T
@@ -32,7 +33,7 @@ _result_fields = [
     "x_grid",  # F x PHI x T
     "y_grid",  # F x PHI x T
 ]
-Result = collections.namedtuple("Result", _result_fields, defaults=[None] * len(_result_fields))
+SimulationResult = collections.namedtuple("SimulationResult", _result_fields, defaults=[None] * len(_result_fields))
 
 # Default model parameters
 _DEFAULT_B0 = -1.3075312012275244
@@ -162,7 +163,7 @@ def simulate_passes(
     v0_prob_aggregation_mode=_DEFAULT_V0_PROB_AGGREGATION_MODE,
     normalize=_DEFAULT_NORMALIZE,
     use_efficient_sigmoid=_DEFAULT_USE_EFFICIENT_SIGMOID,
-) -> Result:
+) -> SimulationResult:
     """ Calculate the pass simulation model using numpy matrices - Core functionality of this package
 
     # Simulate a pass from player A straight to the right towards a defender B who is 50m away.
@@ -321,7 +322,7 @@ def simulate_passes(
     attack_cum_poss = np.maximum.accumulate(attack_poss_density, axis=-1) * radial_gridsize if _should_return_any_of(["attack_cum_poss"]) else None  # possibility CDF uses cummax instead of cumsum to emerge from PDF
     defense_cum_poss = np.maximum.accumulate(defense_poss_density, axis=-1) * radial_gridsize if _should_return_any_of(["defense_cum_poss"]) else None
 
-    result = Result(
+    result = SimulationResult(
         # Team-level prob-/possibilities (cumulative and densities) along simulated ball trajectories
         attack_cum_prob=attack_cum_prob,  # F x PHI x T
         attack_cum_poss=attack_cum_poss,  # F x PHI x T
@@ -360,6 +361,7 @@ def simulate_passes(
 
 
 def simulate_passes_chunked(
+    # Input data
     PLAYER_POS,
     BALL_POS,
     phi_grid,
@@ -368,24 +370,27 @@ def simulate_passes_chunked(
     player_teams,
     players=None,
     passers_to_exclude=None,
-    chunk_size=200,
-    fields_to_return=(
-        "attack_cum_prob",  # F x PHI x T
-        "attack_cum_poss",  # F x PHI x T
-        "attack_prob_density",  # F x PHI x T
-        "attack_poss_density",  # F x PHI x T
-        "defense_cum_prob",  # F x PHI x T
-        "defense_cum_poss",  # F x PHI x T
-        "defense_prob_density",  # F x PHI x T
-        "defense_poss_density",  # F x PHI x T
-        "cum_p0",  # F x PHI x T
-        "p0_density",  # F x PHI x T
-        "player_cum_prob",  # F x P x PHI x T
-        "player_cum_poss",  # F x P x PHI x T
-        "player_prob_density",  # F x P x PHI x T
-        "player_poss_density",  # F x P x PHI x T
-    ),
     x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34,
+
+    # Options
+    progress_bar=True,
+    chunk_size=50,
+    fields_to_return=(
+            "attack_cum_prob",  # F x PHI x T
+            "attack_cum_poss",  # F x PHI x T
+            "attack_prob_density",  # F x PHI x T
+            "attack_poss_density",  # F x PHI x T
+            "defense_cum_prob",  # F x PHI x T
+            "defense_cum_poss",  # F x PHI x T
+            "defense_prob_density",  # F x PHI x T
+            "defense_poss_density",  # F x PHI x T
+            "cum_p0",  # F x PHI x T
+            "p0_density",  # F x PHI x T
+            "player_cum_prob",  # F x P x PHI x T
+            "player_cum_poss",  # F x P x PHI x T
+            "player_prob_density",  # F x P x PHI x T
+            "player_poss_density",  # F x P x PHI x T
+    ),
 
     # Model parameters
     pass_start_location_offset=_DEFAULT_PASS_START_LOCATION_OFFSET,
@@ -404,7 +409,7 @@ def simulate_passes_chunked(
     v0_prob_aggregation_mode=_DEFAULT_V0_PROB_AGGREGATION_MODE,
     normalize=_DEFAULT_NORMALIZE,
     use_efficient_sigmoid=_DEFAULT_USE_EFFICIENT_SIGMOID,
-) -> Result:
+) -> SimulationResult:
     """
     Execute pass simulation in chunks to avoid OOM.
 
@@ -421,9 +426,12 @@ def simulate_passes_chunked(
 
     F = PLAYER_POS.shape[0]
 
-    i_chunks = range(0, F, chunk_size)
+    i_chunks = list(range(0, F, chunk_size))
 
     full_result = None
+
+    if progress_bar:
+        i_chunks = _progress_bar(i_chunks, desc="Simulating passes", total=len(i_chunks), unit="chunk")
 
     for chunk_nr, i in enumerate(i_chunks):
         i_chunk_end = min(i + chunk_size, F)
@@ -481,7 +489,7 @@ def simulate_passes_chunked(
             full_player_poss_density = np.concatenate([full_result.player_poss_density, result.player_poss_density], axis=0)
             full_player_cum_prob = np.concatenate([full_result.player_cum_prob, result.player_cum_prob], axis=0)
             full_player_cum_poss = np.concatenate([full_result.player_cum_poss, result.player_cum_poss], axis=0)
-            full_result = Result(
+            full_result = SimulationResult(
                 attack_cum_poss=full_poss_cum,
                 attack_cum_prob=full_p_cum,
                 attack_poss_density=full_p_density,
@@ -506,8 +514,8 @@ def simulate_passes_chunked(
 
 
 def clip_simulation_result_to_pitch(
-    simulation_result: Result, x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34,
-) -> Result:
+    simulation_result: SimulationResult, x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34,
+) -> SimulationResult:
     """
     Set all data points that are outside the pitch to zero (e.g. for DAS computation)
 
@@ -546,10 +554,10 @@ def clip_simulation_result_to_pitch(
             updated_cum[..., i] = np.where(on_pitch_mask_field[..., i], cum_field_data[..., i], updated_cum[..., i-1] if i > 0 else start_value)
             if cumulative_field == "attack_cum_prob":
                 if i > 0:
-                    assert np.alltrue(on_pitch_mask_field[..., i] | (updated_cum[..., i] == updated_cum[..., i-1]))
+                    assert np.all(on_pitch_mask_field[..., i] | (updated_cum[..., i] == updated_cum[..., i-1]))
         # for i in range(cum_field_data.shape[-1]):
         #     if i > 0:
-        #         assert np.alltrue(on_pitch_mask_field[..., i] | (updated_cum[..., i] == updated_cum[..., i - 1]))
+        #         assert np.all(on_pitch_mask_field[..., i] | (updated_cum[..., i] == updated_cum[..., i - 1]))
 
         # updated_cum = np.where(~on_pitch_mask_field, updated_cum, np.nan)
         # st.write("x", x.shape)
@@ -596,7 +604,7 @@ def clip_simulation_result_to_pitch(
     return simulation_result
 
 
-def integrate_surfaces(result: Result, x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34):
+def integrate_surfaces(result: SimulationResult, x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34):
     """
     Integrate attacking possibility density in result to obtain surface area (AS/DAS)
 

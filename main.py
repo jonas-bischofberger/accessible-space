@@ -1,8 +1,14 @@
+import time
+
 import matplotlib.pyplot as plt
 import pandas as pd
 
 import accessible_space
 import numpy as np
+
+import accessible_space.utility
+import accessible_space.tests.qualitative_profiling
+
 # import streamlit as st
 
 
@@ -23,7 +29,7 @@ def readme():
     print(df_passes[["event_string", "DAS_Gained", "AS_Gained"]])
 
     ### 3. Add Dangerous Accessible Space to tracking frames
-    pitch_result = accessible_space.get_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", possession_team_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34)
+    pitch_result = accessible_space.get_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", team_in_possession_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34)
     df_tracking["AS"] = pitch_result.acc_space  # Accessible space
     df_tracking["DAS"] = pitch_result.das  # Dangerous accessible space
     print(df_tracking[["frame_id", "team_in_possession", "AS", "DAS"]].drop_duplicates())
@@ -89,9 +95,15 @@ if __name__ == '__main__':
 
     importlib.reload(accessible_space.tests.test_model_plausibility)
     importlib.reload(accessible_space.interface)
-    importlib.reload(accessible_space.core)
-    importlib.reload(accessible_space.validation)
+    # importlib.reload(accessible_space.core)
+    # importlib.reload(accessible_space.validation)
 
-    # accessible_space.tests.test_model_plausibility.test_das_gained()
+    from accessible_space.utility import _progress_bar
+
+    # accessible_space.tests.test_model_plausibility.test_xc_parameters(accessible_space.tests.test_model_plausibility._get_butterfly_data, False, False, True, False)
+    # accessible_space.tests.test_model_plausibility.test_bad_data_das(pd.DataFrame({"frame_id": [1, 2], "player_id": ["a", "b"], "team_id": ["H", "A"], "x": [0, 0], "y": [0, 0], "vx": [0, 0], "vy": [0, 0], "team_in_possession": ["H", "H"]}), ValueError, "Ball flag ball_tracking_player_id='ball' does not exist in column ")
+    # accessible_space.tests.test_model_plausibility.test_real_world_data(1)
     # accessible_space.validation_dashboard()
-    readme()
+    # accessible_space.tests.qualitative_profiling.profiling_dashboard()
+    accessible_space.tests.test_model_plausibility.test_as_symmetry(_get_data=accessible_space.tests.test_model_plausibility._get_butterfly_data)
+    # readme()
