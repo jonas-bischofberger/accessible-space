@@ -13,9 +13,9 @@ class _Sentinel:
 _unset = _Sentinel()  # To explicitly differentiate between a default None and a user-set None
 
 
-def _progress_bar(iterable, update_interval=1, **kwargs):
+def progress_bar(iterable, update_interval=1, **kwargs):
     """
-    >>> for i in _progress_bar(range(100)):
+    >>> for i in progress_bar(range(100)):
     ...     pass
     """
     try:
@@ -37,7 +37,11 @@ def _progress_bar(iterable, update_interval=1, **kwargs):
     for i, item in enumerate(console_progress_bar):
         yield item
         if i % update_interval == 0:
-            streamlit_progress_bar.progress((i + 1) / total, text=_get_progress_text_without_progress_bar(console_progress_bar))
+            if total is not None:
+                progress_value = (i + 1) / total
+            else:
+                progress_value = 0
+            streamlit_progress_bar.progress(progress_value, text=_get_progress_text_without_progress_bar(console_progress_bar))
     streamlit_progress_bar.progress(0.999, text=_get_progress_text_without_progress_bar(console_progress_bar))
 
 

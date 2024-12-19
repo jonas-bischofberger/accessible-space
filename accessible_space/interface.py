@@ -880,6 +880,8 @@ def infer_playing_direction(
     2       1       H                  A  3  7               -1.0
     3       1       A                  A  4  8               -1.0
     """
+    _check_presence_of_required_columns(df_tracking, "df_tracking", column_names=["team_col", "team_in_possession_col", "x_col"], column_values=[team_col, team_in_possession_col, x_col])
+
     playing_direction = {}
     if period_col is None:
         _period_col = get_unused_column_name(df_tracking.columns, "period_id")

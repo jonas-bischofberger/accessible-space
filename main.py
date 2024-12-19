@@ -98,7 +98,7 @@ if __name__ == '__main__':
     # importlib.reload(accessible_space.core)
     # importlib.reload(accessible_space.validation)
 
-    from accessible_space.utility import _progress_bar
+    from accessible_space.utility import progress_bar
 
     # accessible_space.tests.test_model_plausibility.test_xc_parameters(accessible_space.tests.test_model_plausibility._get_butterfly_data, False, False, True, False)
     # accessible_space.tests.test_model_plausibility.test_bad_data_das(pd.DataFrame({"frame_id": [1, 2], "player_id": ["a", "b"], "team_id": ["H", "A"], "x": [0, 0], "y": [0, 0], "vx": [0, 0], "vy": [0, 0], "team_in_possession": ["H", "H"]}), ValueError, "Ball flag ball_tracking_player_id='ball' does not exist in column ")
