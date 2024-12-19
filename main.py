@@ -98,7 +98,7 @@ if __name__ == '__main__':
     # importlib.reload(accessible_space.core)
     # importlib.reload(accessible_space.validation)
 
-    from accessible_space.utility import _progress_bar
+    from accessible_space.utility import progress_bar
 
     accessible_space.tests.test_model_plausibility.test_infer_playing_direction(_get_data=accessible_space.tests.test_model_plausibility._get_butterfly_data)
 

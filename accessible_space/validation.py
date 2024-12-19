@@ -551,7 +551,7 @@ def bin_nr_calibration_plot(df, prediction_col="xc", outcome_col="success", n_bi
     return fig
 
 
-def plot_pass(p4ss, df_tracking):
+def plot_pass(p4ss, df_tracking, pass_x_col):
     plt.figure()
     plt.arrow(x=p4ss["coordinates_x"], y=p4ss["coordinates_y"], dx=p4ss["end_coordinates_x"] - p4ss["coordinates_x"],
               dy=p4ss["end_coordinates_y"] - p4ss["coordinates_y"], head_width=1, head_length=1, fc="red", ec="red")

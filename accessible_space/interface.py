@@ -873,7 +873,7 @@ def infer_playing_direction(
     2       1       H                  A  3  7               -1.0
     3       1       A                  A  4  8               -1.0
     """
-    _check_presence_of_required_columns(df_tracking, "df_tracking", ["team_col", "team_in_possession_col", "x_col"], [team_col, team_in_possession_col, x_col])
+    _check_presence_of_required_columns(df_tracking, "df_tracking", column_names=["team_col", "team_in_possession_col", "x_col"], column_values=[team_col, team_in_possession_col, x_col])
     if period_col is not None:
         _check_presence_of_required_columns(df_tracking, "df_tracking", ["period_col"], [period_col], "Either specify period_col or set to None if your data has no separate periods.")
 

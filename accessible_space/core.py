@@ -7,7 +7,7 @@ import scipy.integrate
 # import streamlit as st
 
 from .motion_models import constant_velocity_time_to_arrive_1d, approx_two_point_time_to_arrive, constant_velocity_time_to_arrive
-from .utility import _progress_bar
+from .utility import progress_bar
 
 # SimulationResult object to hold simulation results
 _result_fields = [
@@ -431,7 +431,7 @@ def simulate_passes_chunked(
     full_result = None
 
     if progress_bar:
-        i_chunks = _progress_bar(i_chunks, desc="Simulating passes", total=len(i_chunks), unit="chunk")
+        i_chunks = progress_bar(i_chunks, desc="Simulating passes", total=len(i_chunks), unit="chunk")
 
     for chunk_nr, i in enumerate(i_chunks):
         i_chunk_end = min(i + chunk_size, F)
