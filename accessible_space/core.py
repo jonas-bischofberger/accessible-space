@@ -376,20 +376,20 @@ def simulate_passes_chunked(
     progress_bar=True,
     chunk_size=50,
     fields_to_return=(
-            "attack_cum_prob",  # F x PHI x T
-            "attack_cum_poss",  # F x PHI x T
-            "attack_prob_density",  # F x PHI x T
-            "attack_poss_density",  # F x PHI x T
-            "defense_cum_prob",  # F x PHI x T
-            "defense_cum_poss",  # F x PHI x T
-            "defense_prob_density",  # F x PHI x T
-            "defense_poss_density",  # F x PHI x T
-            "cum_p0",  # F x PHI x T
-            "p0_density",  # F x PHI x T
-            "player_cum_prob",  # F x P x PHI x T
-            "player_cum_poss",  # F x P x PHI x T
-            "player_prob_density",  # F x P x PHI x T
-            "player_poss_density",  # F x P x PHI x T
+        "attack_cum_prob",  # F x PHI x T
+        "attack_cum_poss",  # F x PHI x T
+        "attack_prob_density",  # F x PHI x T
+        "attack_poss_density",  # F x PHI x T
+        "defense_cum_prob",  # F x PHI x T
+        "defense_cum_poss",  # F x PHI x T
+        "defense_prob_density",  # F x PHI x T
+        "defense_poss_density",  # F x PHI x T
+        "cum_p0",  # F x PHI x T
+        "p0_density",  # F x PHI x T
+        "player_cum_prob",  # F x P x PHI x T
+        "player_cum_poss",  # F x P x PHI x T
+        "player_prob_density",  # F x P x PHI x T
+        "player_poss_density",  # F x P x PHI x T
     ),
 
     # Model parameters

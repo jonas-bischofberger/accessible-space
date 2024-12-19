@@ -451,6 +451,31 @@ def test_player_level_consistent_with_team_level(_get_data):
 
 
 @pytest.mark.parametrize("_get_data", [_get_butterfly_data, _get_butterfly_data_with_nans])
+def test_infer_playing_direction(_get_data):
+    _, _, df_tracking = _get_data()
+    df_tracking["playing_direction"] = accessible_space.infer_playing_direction(df_tracking, period_col=None)
+    assert (df_tracking["playing_direction"] == 1).all()
+
+@pytest.mark.parametrize("df_tracking,period_col,exception,exception_message_substring", [
+    (pd.DataFrame(), None, KeyError, "Missing columns"),
+    (pd.DataFrame({"frame_id": [1, 2]}), None, KeyError, "Missing columns"),
+    (pd.DataFrame({"frame_id": [1, 2], "team_id": ["H", "A"], "x": [0, 0]}), None, KeyError, "Missing column"),
+    (pd.DataFrame({"frame_id": [1, 2], "team_id": ["H", "A"], "x": [0, 0], "team_in_possession": ["H", "H"]}), "period_col", KeyError, "Missing column"),
+])
+def test_bad_data_infer_playing_direction(df_tracking, period_col, exception, exception_message_substring):
+    with pytest.raises(exception, match=exception_message_substring):
+        accessible_space.infer_playing_direction(df_tracking, period_col=period_col)
+
+
+@pytest.mark.parametrize("df_tracking,exception,exception_message_substring", [
+    (pd.DataFrame({"frame_id": [1, 2], "team_id": ["H", "A"], "x": [0, 0], "team_in_possession": ["H", "H"]}), KeyError, "specify period_col or set to None if your data has no separate periods"),
+])
+def test_bad_data_infer_playing_direction_with_default_period(df_tracking, exception, exception_message_substring):
+    with pytest.raises(exception, match=exception_message_substring):
+        accessible_space.infer_playing_direction(df_tracking)
+
+
+@pytest.mark.parametrize("_get_data", [_get_butterfly_data, _get_butterfly_data_with_nans])
 def test_poss_never_below_prob(_get_data):
     _, _, df_tracking = _get_data()
     ret = accessible_space.get_dangerous_accessible_space(df_tracking, normalize=True)
@@ -530,7 +555,7 @@ def test_surface_integration(_get_data):
 
 
 @pytest.mark.parametrize("df_tracking,exception,exception_message_substring", [
-    (pd.DataFrame(), ValueError, "Tracking data is empty"),
+    (pd.DataFrame(), KeyError, "Missing columns in tracking data"),
     (pd.DataFrame({"frame_id": [1, 2]}), KeyError, "Missing columns in tracking data"),
     (pd.DataFrame({"frame_id": [1, 2], "player_id": ["a", "b"], "team_id": ["H", "A"], "x": [0, 0], "vx": [0, 0]}), KeyError, "Missing columns in tracking data: y_col='y', vy_col='vy'"),
     (pd.DataFrame({"frame_id": [1, 2], "player_id": ["a", "b"], "team_id": ["H", "A"], "x": [0, 0], "y": [0, 0], "vx": [0, 0]}), KeyError, "Missing columns in tracking data: vy_col='vy'"),
@@ -543,8 +568,8 @@ def test_bad_data_das(df_tracking, exception, exception_message_substring):
 
 #     df_tracking =
 @pytest.mark.parametrize("df_passes,df_tracking,exception,use_event_ball_pos,exception_message_substring", [
-    (pd.DataFrame({"frame_id": [1, 1], "player_id": ["a", "a"], "team_id": ["H", "H"], "x": [0, 0], "x_target": [1, 1], "y": [2, 2], "y_target": [3, 3]}), pd.DataFrame(), ValueError, True, "Tracking data is empty"),
-    (pd.DataFrame(), pd.DataFrame({"frame_id": [1, 1, 1, 1], "player_id": ["a", "ball", "b", "c"], "team_id": ["H", None, "A", "H"], "x": [0, 0, 1, 2], "y": [0, 0, 1, 2], "vx": [0, 0, 1, 2], "vy": [0, 0, 1, 2], "team_in_possession": ["H", "H", "H", "H"]}), ValueError, True, "Passes data is empty"),
+    (pd.DataFrame({"frame_id": [1, 1], "player_id": ["a", "a"], "team_id": ["H", "H"], "x": [0, 0], "x_target": [1, 1], "y": [2, 2], "y_target": [3, 3]}), pd.DataFrame(), KeyError, True, "Missing columns in df_tracking"),
+    (pd.DataFrame(), pd.DataFrame({"frame_id": [1, 1, 1, 1], "player_id": ["a", "ball", "b", "c"], "team_id": ["H", None, "A", "H"], "x": [0, 0, 1, 2], "y": [0, 0, 1, 2], "vx": [0, 0, 1, 2], "vy": [0, 0, 1, 2], "team_in_possession": ["H", "H", "H", "H"]}), KeyError, True, "Missing columns in df_passes"),
     (pd.DataFrame({"frame_id": [1, 1], "player_id": ["a", "a"], "team_id": ["H", "H"], "x": [0, 0], "x_target": [1, 1], "y": [2, 2], "y_target": [3, 3]}), pd.DataFrame({"frame_id": [1, 1], "player_id": ["a", "b"], "team_id": ["H", "A"], "x": [0, 0], "y": [0, 0], "vx": [0, 0], "vy": [0, 0], "team_in_possession": ["H", "H"]}), ValueError, True, "Ball flag ball_tracking_player_id='ball' does not exist in column"),
 ])
 def test_bad_data_xc(df_passes, df_tracking, use_event_ball_pos, exception, exception_message_substring):
@@ -852,6 +877,7 @@ def rest_real_world_data(dataset_nr):
         event_team_col="Team", tracking_x_col="X", tracking_y_col="Y", tracking_team_col="TEAM",
         tracking_player_col="PLAYER"
     )
+    df_passes["xc"] = ret.xc
 
     for pass_nr, (pass_index, p4ss) in enumerate(df_passes.iterrows()):
         plt.figure()

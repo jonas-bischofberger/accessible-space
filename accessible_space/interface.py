@@ -510,11 +510,6 @@ def get_expected_pass_completion(
     >>> simulation_result.attack_cum_prob[df_passes["frame_index"].iloc[0], 0, -1]
     0.4833537059537944
     """
-    if df_tracking.empty:
-        raise ValueError("Tracking data is empty")
-    if df_passes.empty:
-        raise ValueError("Passes data is empty")
-
     _check_presence_of_required_columns(df_tracking, "df_tracking", column_names=["tracking_x_col", "tracking_y_col", "tracking_vx_col", "tracking_vy_col", "tracking_frame_col", "tracking_team_col", "tracking_player_col"], column_values=[tracking_x_col, tracking_y_col, tracking_vx_col, tracking_vy_col, tracking_frame_col, tracking_team_col, tracking_player_col])
     _check_presence_of_required_columns(df_passes, "df_passes", column_names=["event_frame_col", "event_start_x_col", "event_start_y_col", "event_end_x_col", "event_end_y_col", "event_team_col", "event_player_col"], column_values=[event_frame_col, event_start_x_col, event_start_y_col, event_end_x_col, event_end_y_col, event_team_col, event_player_col])
     _check_tracking_coordinate_ranges(df_tracking, tracking_x_col, tracking_y_col)
@@ -746,8 +741,6 @@ def get_dangerous_accessible_space(
     4         4         A    Home  0.3  0.20  0.1  0.05               Home          0  2526.241382  24.098972            4           0.0
     """
 
-    if df_tracking.empty:
-        raise ValueError("Tracking data is empty")
     missing_columns = [(parameter_name, col) for parameter_name, col in [("frame_col", frame_col), ("player_col", player_col), ("team_col", team_col), ("x_col", x_col), ("y_col", y_col), ("vx_col", vx_col), ("vy_col", vy_col), ("team_in_possession_col", team_in_possession_col)] if col not in df_tracking.columns]
     if len(missing_columns) > 0:
         raise KeyError(f"""Missing column{'s' if len(missing_columns) > 1 else ''} in tracking data: {', '.join(['='.join([parameter_name, "'" + missing_columns + "'"]) for (parameter_name, missing_columns) in missing_columns])}""")
@@ -880,6 +873,10 @@ def infer_playing_direction(
     2       1       H                  A  3  7               -1.0
     3       1       A                  A  4  8               -1.0
     """
+    _check_presence_of_required_columns(df_tracking, "df_tracking", ["team_col", "team_in_possession_col", "x_col"], [team_col, team_in_possession_col, x_col])
+    if period_col is not None:
+        _check_presence_of_required_columns(df_tracking, "df_tracking", ["period_col"], [period_col], "Either specify period_col or set to None if your data has no separate periods.")
+
     playing_direction = {}
     if period_col is None:
         _period_col = get_unused_column_name(df_tracking.columns, "period_id")
