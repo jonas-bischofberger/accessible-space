@@ -111,6 +111,19 @@ def _get_double_butterfly_data():
     return df_tracking
 
 
+def test_no_poss_artifact_around_passer():
+    _, _, df_tracking = _get_butterfly_data()
+
+    ret = accessible_space.get_dangerous_accessible_space(df_tracking, time_offset_ball=0.1, pass_start_location_offset=0)  # otherwise artifact can happen
+
+    ### Plotting
+    # fig = accessible_space.plot_expected_completion_surface(ret.simulation_result, 0, "attack_poss_density", color="blue")
+    # plt.xlim([-52.5, 52.5])
+    # plt.ylim([-34, 34])
+    # st.write(fig)
+    assert (ret.simulation_result.attack_cum_poss[0, :, 0] > 0.5).any()
+
+
 @pytest.mark.parametrize("_get_data", [_get_butterfly_data, _get_butterfly_data_with_nans])
 def test_as_symmetry(_get_data):
     _, _, df_tracking = _get_data()
@@ -862,6 +875,7 @@ def get_metrica_data(
     df_passes["is_successful"] = df_passes[passer_team_col] == df_passes[receiver_team_col]
 
     return df_passes, df_tracking
+
 
 @pytest.mark.parametrize("dataset_nr", [1, 2])
 def rest_real_world_data(dataset_nr):

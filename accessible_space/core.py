@@ -56,7 +56,7 @@ _DEFAULT_USE_EFFICIENT_SIGMOID = True
 PARAMETER_BOUNDS = {
     # Core simulation model
     "pass_start_location_offset": [-5, 5],
-    "time_offset_ball": [-5, 5],
+    "time_offset_ball": [-5, 5],  # very small and negative values can lead to artifacts around the passer (bc passer cannot reach the ball), also in conjunction with location offset
     "radial_gridsize": [4.99, 5.01],
     "b0": [-20, 15],
     "b1": [-250, 0],
@@ -373,7 +373,7 @@ def simulate_passes_chunked(
     x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34,
 
     # Options
-    progress_bar=True,
+    use_progress_bar=True,
     chunk_size=50,
     fields_to_return=(
         "attack_cum_prob",  # F x PHI x T
@@ -430,7 +430,7 @@ def simulate_passes_chunked(
 
     full_result = None
 
-    if progress_bar:
+    if use_progress_bar:
         i_chunks = progress_bar(i_chunks, desc="Simulating passes", total=len(i_chunks), unit="chunk")
 
     for chunk_nr, i in enumerate(i_chunks):
