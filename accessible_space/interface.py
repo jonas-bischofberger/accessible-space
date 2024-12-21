@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import matplotlib.tri
 import numpy as np
 import pandas as pd
-import streamlit as st
 
 from . import as_dangerous_result
 from .core import _DEFAULT_PASS_START_LOCATION_OFFSET, _DEFAULT_B0, _DEFAULT_TIME_OFFSET_BALL, _DEFAULT_A_MAX, \
@@ -41,6 +40,8 @@ _DEFAULT_PHI_OFFSET = 0
 _DEFAULT_N_V0_FOR_DAS = 60
 _DEFAULT_V0_MIN_FOR_DAS = 0.01
 _DEFAULT_V0_MAX_FOR_DAS = 30
+_DEFAULT_PASS_START_LOCATION_OFFSET_FOR_DAS = 0
+_DEFAULT_TIME_OFFSET_BALL_FOR_DAS = 0.15
 
 
 def _check_presence_of_required_columns(df, str_data, column_names, column_values, additional_message=None):
@@ -309,8 +310,8 @@ def get_das_gained(
     v0_max=_DEFAULT_V0_MAX_FOR_DAS,
 
     # Simulation parameters
-    pass_start_location_offset=_DEFAULT_PASS_START_LOCATION_OFFSET,
-    time_offset_ball=_DEFAULT_TIME_OFFSET_BALL,
+    pass_start_location_offset=_DEFAULT_PASS_START_LOCATION_OFFSET_FOR_DAS,
+    time_offset_ball=_DEFAULT_TIME_OFFSET_BALL_FOR_DAS,
     radial_gridsize=_DEFAULT_RADIAL_GRIDSIZE,
     b0=_DEFAULT_B0,
     b1=_DEFAULT_B1,
@@ -701,8 +702,8 @@ def get_dangerous_accessible_space(
     v0_max=_DEFAULT_V0_MAX_FOR_DAS,
 
     # Simulation parameters
-    pass_start_location_offset=_DEFAULT_PASS_START_LOCATION_OFFSET,
-    time_offset_ball=_DEFAULT_TIME_OFFSET_BALL,
+    pass_start_location_offset=_DEFAULT_PASS_START_LOCATION_OFFSET_FOR_DAS,
+    time_offset_ball=_DEFAULT_TIME_OFFSET_BALL_FOR_DAS,
     radial_gridsize=_DEFAULT_RADIAL_GRIDSIZE,
     b0=_DEFAULT_B0,
     b1=_DEFAULT_B1,
@@ -908,9 +909,6 @@ def plot_expected_completion_surface(simulation_result: SimulationResult, frame_
     #         raise ValueError(f"Parameter 'simulation_result' is not of type 'SimulationResult' but of type '{type(simulation_result).__name__}': Did you mean to pass <{type(simulation_result).__name__}>.simulation_result?")
     #     else:
     #         raise ValueError(f"Parameter 'simulation_result' is not of type 'SimulationResult' but of type '{type(simulation_result).__name__}'")
-
-    st.write("x_grid", simulation_result.x_grid.shape)
-    st.write("frame_index", frame_index)
 
     x_grid = simulation_result.x_grid[frame_index, :, :]
     y_grid = simulation_result.y_grid[frame_index, :, :]

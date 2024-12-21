@@ -2,6 +2,7 @@ import gc
 import math
 import sys
 import os
+import subprocess
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -17,6 +18,7 @@ import sklearn.model_selection
 import streamlit as st
 import tqdm
 import xmltodict
+import kloppy.metrica
 
 import importlib
 
@@ -29,7 +31,7 @@ importlib.reload(sys.modules["accessible_space.interface"])
 importlib.reload(sys.modules["accessible_space.core"])
 
 cache_dir = os.path.join(os.path.dirname(__file__), ".joblib-cache")
-memory = joblib.Memory(cache_dir, verbose=0)
+memory = joblib.Memory(verbose=0)
 
 metrica_open_data_base_dir = "https://raw.githubusercontent.com/metrica-sports/sample-data/refs/heads/master/data"
 
@@ -37,16 +39,16 @@ metrica_open_data_base_dir = "https://raw.githubusercontent.com/metrica-sports/s
 @memory.cache
 def get_metrica_tracking_data(dataset_nr):
     # TODO remove kloppy dependency
-    home_data_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Home_Team.csv"
-    away_data_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Away_Team.csv"
-    df_tracking_home = pd.read_csv(home_data_url)
-    df_tracking_away = pd.read_csv(away_data_url)
-    df_tracking_home["team_id"] = "Home"
-    df_tracking_away["team_id"] = "Away"
-    df_tracking = pd.concat([df_tracking_home, df_tracking_away])
+    # home_data_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Home_Team.csv"
+    # away_data_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Away_Team.csv"
+    # df_tracking_home = pd.read_csv(home_data_url, skiprows=2)
+    # df_tracking_away = pd.read_csv(away_data_url, skiprows=2)
+    # df_tracking_home["team_id"] = "Home"
+    # df_tracking_away["team_id"] = "Away"
+    # df_tracking = pd.concat([df_tracking_home, df_tracking_away])
 
-    # dataset = kloppy.metrica.load_open_data(dataset_nr)  # , limit=100)
-    # df_tracking = dataset.to_df()
+    dataset = kloppy.metrica.load_open_data(dataset_nr)  # , limit=100)
+    df_tracking = dataset.to_df()
     return df_tracking
 
 
@@ -234,6 +236,11 @@ def get_metrica_data():
 
         with st.spinner(f"Downloading tracking data from dataset {dataset_nr}"):
             df_tracking = get_metrica_tracking_data(dataset_nr)
+
+        st.write("df_tracking.head()")
+        st.write(df_tracking.head())
+
+        df_tracking = df_tracking.iloc[2:]
 
         df_tracking = df_tracking[df_tracking["frame_id"].isin(frames_to_load)]
 
@@ -551,7 +558,7 @@ def bin_nr_calibration_plot(df, prediction_col="xc", outcome_col="success", n_bi
     return fig
 
 
-def plot_pass(p4ss, df_tracking, pass_x_col):
+def plot_pass(p4ss, df_tracking):
     plt.figure()
     plt.arrow(x=p4ss["coordinates_x"], y=p4ss["coordinates_y"], dx=p4ss["end_coordinates_x"] - p4ss["coordinates_x"],
               dy=p4ss["end_coordinates_y"] - p4ss["coordinates_y"], head_width=1, head_length=1, fc="red", ec="red")
@@ -1002,13 +1009,20 @@ def validation_dashboard():
             plot_pass(p4ss, df_tracking)
 
     # validate()
-    n_steps = st.number_input("Number of simulations", value=100)
-    use_prefit = st.checkbox("Use prefit", value=True)
+    n_steps = st.number_input("Number of simulations", value=3000)
+    use_prefit = st.checkbox("Use prefit", value=False)  # TODO set to True
     validate_multiple_matches(
         dfs_tracking=dfs_tracking, dfs_passes=dfs_passes, outcome_col="success", n_steps=n_steps, use_prefit=use_prefit
     )
     return
 
 
+def main():
+    if len(sys.argv) == 2 and sys.argv[1] == "run_dashboard":
+        validation_dashboard()
+    else:  # if script is called directly, call it again with streamlit
+        subprocess.run(['streamlit', 'run', os.path.abspath(__file__), "run_dashboard"], check=True)
+
+
 if __name__ == '__main__':
-    validation_dashboard()
+    main()

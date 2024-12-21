@@ -17,7 +17,7 @@ The package has a simple pandas interface that you can use to add...
 - DAS (Dangerous accessible space) and AS (Accessible space): The (dangerous) area on the pitch that a team controls. DAS represents the value of a situation based on the amount of dangerous space that is accessible to the attacking team.
 - DAS Gained: The increase in DAS through a pass. Measures the reward of a pass.
 
-You only need to pass your dataframes and the schema of your data.
+To obtain these values, you only need to pass your dataframes and the schema of your data.
 
 ```python
 import accessible_space
@@ -42,7 +42,7 @@ df_tracking["DAS"] = pitch_result.das  # Dangerous accessible space
 print(df_tracking[["frame_id", "team_in_possession", "AS", "DAS"]].drop_duplicates())
 ```
 
-For even more advanced analytics, you can access the raw simulation results on team- and player-level.
+For even more advanced analytics, you can also access the raw simulation results on both team- and player-level.
 
 ```python
 ### Example 4. Access raw simulation results
@@ -97,11 +97,28 @@ for _, row in df_tracking[(df_tracking["frame_id"] == 0) & (df_tracking["player_
     print(f"Player {row['player_id']} ({'attacker' if is_attacker else 'defender'}) controls {acc_space:.0f}m² AS and {das:.2f} m² DAS.")
 ```
 
+For a quick and visual impression of the model, you can also run these examples within a Streamlit app using:
+
+```bash
+pip install accessible_space[full]  # install additional dependencies, such as Streamlit
+python -m accessible_space demo
+```
+
+### Reproduce my validation
+
+To reproduce my validation, run this command. Feel free to experiment and play around with the parameters of the validation routine to get an impression of the predictive accuracy of the model.
+
+```bash
+pip install accessible_space[full]
+python -m accessible_space validation
+```
+
 
 ### Run tests
 
 ```bash
-python -m pytest path/to/accessible_space/
+pip install accessible_space[dev]
+python -m accessible_space tests
 ```
 
 

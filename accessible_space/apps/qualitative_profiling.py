@@ -3,7 +3,7 @@ import importlib
 import matplotlib.pyplot as plt
 import pytest
 import streamlit as st
-import accessible_space.tests.test_model_plausibility
+import accessible_space.tests.test_model
 import wfork_streamlit_profiler
 
 
@@ -52,7 +52,7 @@ def extract_params_and_run(test_func, run_only_once=False):
 
 
 def profiling_dashboard():
-    all_test_functions = dir(accessible_space.tests.test_model_plausibility)
+    all_test_functions = dir(accessible_space.tests.test_model)
     # all_test_functions = [f for f in all_test_functions if f.startswith("test_")]
     selected_test_function = st.multiselect("Select test", all_test_functions, default=[])
     run_only_once = st.toggle("Run only once", value=False)
@@ -62,7 +62,7 @@ def profiling_dashboard():
     if profile:
         profiler = wfork_streamlit_profiler.Profiler()
 
-    func = getattr(accessible_space.tests.test_model_plausibility, selected_test_function[0])
+    func = getattr(accessible_space.tests.test_model, selected_test_function[0])
 
     if profile:
         profiler.start()

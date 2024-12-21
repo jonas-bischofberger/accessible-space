@@ -6,7 +6,11 @@ import pandas as pd
 import pytest
 
 import accessible_space
-import streamlit as st
+
+try:
+    import streamlit as st
+except ImportError:
+    pass
 
 
 def _get_butterfly_data():
@@ -114,7 +118,8 @@ def _get_double_butterfly_data():
 def test_no_poss_artifact_around_passer():
     _, _, df_tracking = _get_butterfly_data()
 
-    ret = accessible_space.get_dangerous_accessible_space(df_tracking, time_offset_ball=0.1, pass_start_location_offset=0)  # otherwise artifact can happen
+    # Using the default parameters should not lead to inaccessible artifact around passer
+    ret = accessible_space.get_dangerous_accessible_space(df_tracking)
 
     ### Plotting
     # fig = accessible_space.plot_expected_completion_surface(ret.simulation_result, 0, "attack_poss_density", color="blue")
@@ -179,17 +184,6 @@ def test_xc_symmetry(_get_data):
 def test_xc_parameters(_get_data, use_approx_two_point, keep_inertial_velocity, use_event_coordinates_as_ball_position, use_fixed_v0):
     df_pass_safe, df_pass_risky, df_tracking = _get_data()
 
-    st.write("df_tracking")
-    st.write(df_tracking)
-
-    st.write("df_pass_safe")
-    st.write(df_pass_safe)
-
-    st.write("use_approx_two_point", use_approx_two_point)
-    st.write("keep_inertial_velocity", keep_inertial_velocity)
-    st.write("use_event_coordinates_as_ball_position", use_event_coordinates_as_ball_position)
-    st.write("use_fixed_v0", use_fixed_v0)
-
     ret_safe = accessible_space.get_expected_pass_completion(df_pass_safe, df_tracking, use_approx_two_point=use_approx_two_point, keep_inertial_velocity=keep_inertial_velocity, use_event_coordinates_as_ball_position=use_event_coordinates_as_ball_position, use_fixed_v0=use_fixed_v0, clip_to_pitch=False)
     assert ret_safe.xc[0] > 0.95
 
@@ -221,13 +215,14 @@ def test_coordinate_systems(_get_data):
         assert np.all(np.any(ret.simulation_result.y_grid <= y_min, axis=(1, 2)))
         assert np.all(np.any(ret.simulation_result.y_grid >= y_max, axis=(1, 2)))
 
-        plt.figure()
-        plt.xlim([x_min, x_max])
-        plt.ylim([y_min, y_max])
-        accessible_space.plot_expected_completion_surface(ret.simulation_result, 0, "attack_poss_density", color="blue")
-        accessible_space.plot_expected_completion_surface(ret.dangerous_result, 0, "attack_poss_density", color="red")
-        plt.title(f"Accessible space: {ret.acc_space.iloc[0]:.0f} m², DAS: {ret.das.iloc[0]:.2f} m²")
-        st.write(plt.gcf())
+        ### Plotting
+        # plt.figure()
+        # plt.xlim([x_min, x_max])
+        # plt.ylim([y_min, y_max])
+        # accessible_space.plot_expected_completion_surface(ret.simulation_result, 0, "attack_poss_density", color="blue")
+        # accessible_space.plot_expected_completion_surface(ret.dangerous_result, 0, "attack_poss_density", color="red")
+        # plt.title(f"Accessible space: {ret.acc_space.iloc[0]:.0f} m², DAS: {ret.das.iloc[0]:.2f} m²")
+        # st.write(plt.gcf())
 
 
 def test_das_gained():
@@ -811,74 +806,73 @@ def example_function():
     return result
 
 
-@st.cache_resource
-def get_metrica_data(
-    dataset_nr=1, new_team_col="TEAM", new_player_col="PLAYER", new_x_col="X", new_y_col="Y",
-    passer_team_col="passer_team", receiver_team_col="receiver_team",
-):
-    def _get():
-        #                             https://raw.githubusercontent.com/metrica-sports/sample-data/refs/heads/master/data/Sample_Game_1/Sample_Game_1_RawEventsData.csv
-        metrica_open_data_base_dir = "https://raw.githubusercontent.com/metrica-sports/sample-data/refs/heads/master/data"
-        # home_data=f"https://raw.githubusercontent.com/metrica-sports/sample-data/master/data/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Home_Team.csv"
-        home_data_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Home_Team.csv"
-        # away_data=f"https://raw.githubusercontent.com/metrica-sports/sample-data/master/data/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Away_Team.csv"
-        away_data_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Away_Team.csv"
-        event_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawEventsData.csv"
-        with st.spinner(f"Loading data 1/3 from {event_url}"):
-            df_events = pd.read_csv(event_url)
-        with st.spinner(f"Loading data 2/3 from {home_data_url}"):
-            df_home = pd.read_csv(home_data_url, skiprows=2)
-        with st.spinner(f"Loading data 3/3 from {away_data_url}"):
-            df_away = pd.read_csv(away_data_url, skiprows=2)
-        return df_home, df_away, df_events
-
-    df_home, df_away, df_events = _get()
-
-    df_tracking = []
-    for team, df_team in [("Home", df_home), ("Away", df_away)]:
-        x_cols = [col for col in df_team.columns if col.startswith("Player") or col.startswith("Ball")]
-        y_cols = [col for col in df_team.columns if col.startswith("Unnamed")]
-        player_cols = x_cols
-
-        df_tracking.append(accessible_space.per_object_frameify_tracking_data(
-            df_team,
-            frame_col="Frame",
-            coordinate_cols=[[x, y] for x, y in zip(x_cols, y_cols)],
-            players=player_cols,
-            player_to_team={player: team for player in player_cols},
-            new_coordinate_cols=[new_x_col, new_y_col],
-            new_team_col=new_team_col,
-            new_player_col=new_player_col,
-        ))
-    df_tracking = pd.concat(df_tracking)
-    df_tracking = df_tracking.drop_duplicates(subset=["Frame", new_player_col], keep="first")
-    i_ball = df_tracking[new_player_col] == "Ball"
-    df_tracking.loc[i_ball, new_team_col] = None
-
-    df_tracking["vx"] = 0  # df["x"].diff() / 25  # v not present -> allow infer?
-    df_tracking["vy"] = 0  # df["y"].diff() / 25  # TODO check v correctness in validation
-
-    df_passes = df_events[df_events["Type"] == "PASS"]
-    player2team = df_tracking[[new_player_col, new_team_col]].set_index(new_player_col)[new_team_col].to_dict()
-    df_passes[passer_team_col] = df_passes["From"].map(player2team)
-    df_passes[receiver_team_col] = df_passes["To"].map(player2team)
-
-    for x_col in ["Start X"]:
-        df_passes[x_col] = (df_passes[x_col] - 0.5) * 105
-    for y_col in ["Start Y"]:
-        df_passes[y_col] = (df_passes[y_col] - 0.5) * 68
-    for x_col in [new_x_col]:
-        df_tracking[x_col] = (df_tracking[x_col] - 0.5) * 105
-    for y_col in [new_y_col]:
-        df_tracking[y_col] = (df_tracking[y_col] - 0.5) * 68
-
-    df_passes["is_successful"] = df_passes[passer_team_col] == df_passes[receiver_team_col]
-
-    return df_passes, df_tracking
-
-
 @pytest.mark.parametrize("dataset_nr", [1, 2])
 def rest_real_world_data(dataset_nr):
+    @st.cache_resource
+    def get_metrica_data(
+            dataset_nr=1, new_team_col="TEAM", new_player_col="PLAYER", new_x_col="X", new_y_col="Y",
+            passer_team_col="passer_team", receiver_team_col="receiver_team",
+    ):
+        def _get():
+            #                             https://raw.githubusercontent.com/metrica-sports/sample-data/refs/heads/master/data/Sample_Game_1/Sample_Game_1_RawEventsData.csv
+            metrica_open_data_base_dir = "https://raw.githubusercontent.com/metrica-sports/sample-data/refs/heads/master/data"
+            # home_data=f"https://raw.githubusercontent.com/metrica-sports/sample-data/master/data/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Home_Team.csv"
+            home_data_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Home_Team.csv"
+            # away_data=f"https://raw.githubusercontent.com/metrica-sports/sample-data/master/data/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Away_Team.csv"
+            away_data_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Away_Team.csv"
+            event_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawEventsData.csv"
+            with st.spinner(f"Loading data 1/3 from {event_url}"):
+                df_events = pd.read_csv(event_url)
+            with st.spinner(f"Loading data 2/3 from {home_data_url}"):
+                df_home = pd.read_csv(home_data_url, skiprows=2)
+            with st.spinner(f"Loading data 3/3 from {away_data_url}"):
+                df_away = pd.read_csv(away_data_url, skiprows=2)
+            return df_home, df_away, df_events
+
+        df_home, df_away, df_events = _get()
+
+        df_tracking = []
+        for team, df_team in [("Home", df_home), ("Away", df_away)]:
+            x_cols = [col for col in df_team.columns if col.startswith("Player") or col.startswith("Ball")]
+            y_cols = [col for col in df_team.columns if col.startswith("Unnamed")]
+            player_cols = x_cols
+
+            df_tracking.append(accessible_space.per_object_frameify_tracking_data(
+                df_team,
+                frame_col="Frame",
+                coordinate_cols=[[x, y] for x, y in zip(x_cols, y_cols)],
+                players=player_cols,
+                player_to_team={player: team for player in player_cols},
+                new_coordinate_cols=[new_x_col, new_y_col],
+                new_team_col=new_team_col,
+                new_player_col=new_player_col,
+            ))
+        df_tracking = pd.concat(df_tracking)
+        df_tracking = df_tracking.drop_duplicates(subset=["Frame", new_player_col], keep="first")
+        i_ball = df_tracking[new_player_col] == "Ball"
+        df_tracking.loc[i_ball, new_team_col] = None
+
+        df_tracking["vx"] = 0  # df["x"].diff() / 25  # v not present -> allow infer?
+        df_tracking["vy"] = 0  # df["y"].diff() / 25  # TODO check v correctness in validation
+
+        df_passes = df_events[df_events["Type"] == "PASS"]
+        player2team = df_tracking[[new_player_col, new_team_col]].set_index(new_player_col)[new_team_col].to_dict()
+        df_passes[passer_team_col] = df_passes["From"].map(player2team)
+        df_passes[receiver_team_col] = df_passes["To"].map(player2team)
+
+        for x_col in ["Start X"]:
+            df_passes[x_col] = (df_passes[x_col] - 0.5) * 105
+        for y_col in ["Start Y"]:
+            df_passes[y_col] = (df_passes[y_col] - 0.5) * 68
+        for x_col in [new_x_col]:
+            df_tracking[x_col] = (df_tracking[x_col] - 0.5) * 105
+        for y_col in [new_y_col]:
+            df_tracking[y_col] = (df_tracking[y_col] - 0.5) * 68
+
+        df_passes["is_successful"] = df_passes[passer_team_col] == df_passes[receiver_team_col]
+
+        return df_passes, df_tracking
+
     df_passes, df_tracking = get_metrica_data(dataset_nr)
 
     st.write("df_passes after parse")

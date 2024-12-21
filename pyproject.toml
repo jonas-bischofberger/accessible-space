@@ -1,6 +1,6 @@
 [project]
 name = "accessible_space"
-version = "0.1.6"
+version = "0.1.11"
 authors = [
   {name="Jonas Bischofberger", email="jonas.bischofberger@univie.ac.at"},
 ]
@@ -15,21 +15,7 @@ dependencies = [
 #    "pandas<2.0.0",
 #    "numpy<1.25.0",
     "scipy",
-
-    "scikit-learn",
-#    "kloppy>=3.15.0",
-    "xmltodict",
-    "joblib",
-    "streamlit",
-    "wfork-streamlit-profiler",  # streamlit_profiler seems incompatible with newer Python versions
     "tqdm",
-
-    "pytest",
-    "pytest-cov",
-    "build",
-    "twine",
-    "setuptools",
-    "tox",
 ]
 classifiers = [
     "Programming Language :: Python",
@@ -44,8 +30,29 @@ classifiers = [
 
 
 [project.optional-dependencies]
-core = ["pandas", "numpy", "scipy", "matplotlib"]
-# TODO test core, try out "strict"/"validation" (pinned versions?), "dev"
+full = [
+    "scikit-learn",
+    "kloppy>=3.15.0",
+    "xmltodict",
+    "joblib",
+    "streamlit",
+    "wfork-streamlit-profiler",
+]
+dev = [
+    "scikit-learn",
+    "kloppy>=3.15.0",
+    "xmltodict",
+    "joblib",
+    "streamlit",
+    "wfork-streamlit-profiler",
+
+    "pytest",
+    "pytest-cov",
+    "build",
+    "twine",
+    "setuptools",
+    "tox",
+]
 
 
 [project.urls]
@@ -64,9 +71,4 @@ filterwarnings = """
     ignore:Range of tracking Y coordinates:UserWarning
     ignore:Range of tracking X coordinates:UserWarning
 """
-#filterwarnings = """
-#    ignore:Inferring attacking direction but 'period_col' is unset. If you have data across multiple halfs, specify 'period_col', otherwise pass 'period_col'=None.:UserWarning
-#    ignore:Range of tracking Y coordinates (0.0 to 0.0) is very small. Make sure your coordinates are in meters.:UserWarning
-#    ignore:Range of tracking Y coordinates (0 to 0) is very small. Make sure your coordinates are in meters.:UserWarning
-#"""
 norecursedirs = ".joblib-cache"

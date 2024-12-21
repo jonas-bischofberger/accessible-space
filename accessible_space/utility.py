@@ -2,7 +2,6 @@ import colorsys
 import numpy as np
 import pandas as pd
 import tqdm
-import streamlit as st
 
 
 class _Sentinel:
@@ -31,9 +30,15 @@ def progress_bar(iterable, update_interval=1, **kwargs):
         return str(console_progress_bar).replace("█", "").replace("▌", "").replace("▊", "").replace("▍", "").replace("▋", "").replace("▉", "").replace("▏", "").replace("▎", "")
 
     console_progress_bar = tqdm.tqdm(iterable, total=total, **kwargs)#CustomTqdm(**kwargs)
-    st.empty()
-    streamlit_progress_bar = st.progress(0)
-    streamlit_progress_bar.progress(0, text=_get_progress_text_without_progress_bar(console_progress_bar))
+
+    try:
+        import streamlit as st
+        st.empty()
+        streamlit_progress_bar = st.progress(0)
+        streamlit_progress_bar.progress(0, text=_get_progress_text_without_progress_bar(console_progress_bar))
+    except ImportError:
+        streamlit_progress_bar = None
+
     for i, item in enumerate(console_progress_bar):
         yield item
         if i % update_interval == 0:
@@ -41,8 +46,12 @@ def progress_bar(iterable, update_interval=1, **kwargs):
                 progress_value = (i + 1) / total
             else:
                 progress_value = 0
-            streamlit_progress_bar.progress(progress_value, text=_get_progress_text_without_progress_bar(console_progress_bar))
-    streamlit_progress_bar.progress(0.999, text=_get_progress_text_without_progress_bar(console_progress_bar))
+
+            if streamlit_progress_bar is not None:
+                streamlit_progress_bar.progress(progress_value, text=_get_progress_text_without_progress_bar(console_progress_bar))
+
+    if streamlit_progress_bar is not None:
+        streamlit_progress_bar.progress(0.999, text=_get_progress_text_without_progress_bar(console_progress_bar))
 
 
 def get_unused_column_name(existing_columns, prefix):
