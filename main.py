@@ -17,15 +17,15 @@ if __name__ == '__main__':
     import accessible_space.tests.test_model
     import accessible_space.interface
     import accessible_space.core
-    import accessible_space.validation
+    # import accessible_space.validation
     from accessible_space.utility import progress_bar
 
     importlib.reload(accessible_space.tests.test_model)
     importlib.reload(accessible_space.interface)
-    # importlib.reload(accessible_space.core)
+    importlib.reload(accessible_space.core)
     # importlib.reload(accessible_space.validation)
 
-    accessible_space.tests.test_model.test_no_poss_artifact_around_passer()
+    accessible_space.tests.test_model.test_surface_plot(accessible_space.tests.test_model._get_butterfly_data)
     # accessible_space.tests.test_model.test_infer_playing_direction(_get_data=accessible_space.tests.test_model._get_butterfly_data)
 
     # accessible_space.tests.test_model.test_xc_parameters(accessible_space.tests.test_model._get_butterfly_data, False, False, True, False)

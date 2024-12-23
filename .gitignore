@@ -1,6 +1,9 @@
 __pycache__/
 .idea/
+.tox/
 .streamlit/
+.coverage
+.joblib-cache/
 build/
 dist/
 *.egg-info/

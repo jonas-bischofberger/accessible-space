@@ -10,10 +10,8 @@ license = {file = "LICENSE"}
 requires-python = ">=3.7"
 dependencies = [
     "matplotlib",
-    "pandas",
     "numpy",
-#    "pandas<2.0.0",
-#    "numpy<1.25.0",
+    "pandas",
     "scipy",
     "tqdm",
 ]
@@ -30,29 +28,30 @@ classifiers = [
 
 
 [project.optional-dependencies]
-full = [
-    "scikit-learn",
-    "kloppy>=3.15.0",
-    "xmltodict",
-    "joblib",
-    "streamlit",
-    "wfork-streamlit-profiler",
-]
-dev = [
-    "scikit-learn",
-    "kloppy>=3.15.0",
-    "xmltodict",
-    "joblib",
-    "streamlit",
-    "wfork-streamlit-profiler",
+#full = [
+#    "scikit-learn",
+#    "kloppy>=3.15.0",
+#    "xmltodict",
+#    "joblib",
+#    "streamlit",
+#    "wfork-streamlit-profiler",
+#]
 
-    "pytest",
-    "pytest-cov",
-    "build",
-    "twine",
-    "setuptools",
-    "tox",
-]
+#dev = [
+#    "scikit-learn",
+#    "kloppy>=3.15.0",
+#    "xmltodict",
+#    "joblib",
+#    "streamlit",
+#    "wfork-streamlit-profiler",
+#
+#    "pytest",
+#    "pytest-cov",
+#    "build",
+#    "twine",
+#    "setuptools",
+#    "tox",
+#]
 
 
 [project.urls]
@@ -71,4 +70,7 @@ filterwarnings = """
     ignore:Range of tracking Y coordinates:UserWarning
     ignore:Range of tracking X coordinates:UserWarning
 """
-norecursedirs = ".joblib-cache"
+norecursedirs = [
+    ".joblib-cache",
+    "apps",
+]
