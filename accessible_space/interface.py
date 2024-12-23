@@ -460,6 +460,7 @@ def get_expected_pass_completion(
     use_event_team_as_team_in_possession=True,
     chunk_size=50,
     additional_fields_to_return=("attack_cum_prob", "attack_cum_poss", "attack_prob_density", "attack_poss_density", "defense_cum_prob", "defense_cum_poss", "defense_prob_density", "defense_poss_density", "cum_p0", "p0_density", "player_cum_prob", "player_cum_poss", "player_prob_density", "player_poss_density"),  # Set to None to speed up calculation
+    use_progress_bar=False,
 
     # xC Parameters
     n_frames_after_pass_for_v0=5,
@@ -605,6 +606,7 @@ def get_expected_pass_completion(
         PLAYER_POS, BALL_POS, phi_grid, v0_grid, passer_teams, player_teams, players,
         passers_to_exclude=passers_to_exclude,
 
+        use_progress_bar=use_progress_bar,
         fields_to_return=fields_to_return,
 
         # Core model parameters
@@ -693,6 +695,7 @@ def get_dangerous_accessible_space(
     chunk_size=50,
     return_cropped_result=False,
     additional_fields_to_return=("attack_cum_prob", "attack_cum_poss", "attack_prob_density", "attack_poss_density", "defense_cum_prob", "defense_cum_poss", "defense_prob_density", "defense_poss_density", "cum_p0", "p0_density", "player_cum_prob", "player_cum_poss", "player_prob_density", "player_poss_density"),
+    use_progress_bar=True,
 
     # DAS Parameters
     n_angles=_DEFAULT_N_ANGLES_FOR_DAS,
@@ -735,11 +738,11 @@ def get_dangerous_accessible_space(
     >>> df_tracking["AS"], df_tracking["DAS"], df_tracking["frame_index"], df_tracking["player_index"] = ret.acc_space, ret.das, ret.frame_index, ret.player_index
     >>> df_tracking.head(5)
        frame_id player_id team_id    x     y   vx    vy team_in_possession  period_id           AS        DAS  frame_index  player_index
-    0         0         A    Home -0.1  0.00  0.1  0.05               Home          0  2558.530803  24.369262            0           0.0
-    1         1         A    Home  0.0  0.05  0.1  0.05               Home          0  2545.716748  24.118275            1           0.0
-    2         2         A    Home  0.1  0.10  0.1  0.05               Home          0  2539.492197  24.160716            2           0.0
-    3         3         A    Home  0.2  0.15  0.1  0.05               Home          0  2529.022848  24.016915            3           0.0
-    4         4         A    Home  0.3  0.20  0.1  0.05               Home          0  2526.241382  24.098972            4           0.0
+    0         0         A    Home -0.1  0.00  0.1  0.05               Home          0  2614.535277  23.766237            0           0.0
+    1         1         A    Home  0.0  0.05  0.1  0.05               Home          0  2606.966458  23.774396            1           0.0
+    2         2         A    Home  0.1  0.10  0.1  0.05               Home          0  2594.325545  23.746548            2           0.0
+    3         3         A    Home  0.2  0.15  0.1  0.05               Home          0  2593.725021  23.542271            3           0.0
+    4         4         A    Home  0.3  0.20  0.1  0.05               Home          0  2571.267814  23.575564            4           0.0
     """
 
     missing_columns = [(parameter_name, col) for parameter_name, col in [("frame_col", frame_col), ("player_col", player_col), ("team_col", team_col), ("x_col", x_col), ("y_col", y_col), ("vx_col", vx_col), ("vy_col", vy_col), ("team_in_possession_col", team_in_possession_col)] if col not in df_tracking.columns]
@@ -804,6 +807,7 @@ def get_dangerous_accessible_space(
         use_efficient_sigmoid=use_efficient_sigmoid,
 
         fields_to_return=fields_to_return,
+        use_progress_bar=use_progress_bar,
         chunk_size=chunk_size,
 
         x_pitch_min=x_pitch_min, x_pitch_max=x_pitch_max, y_pitch_min=y_pitch_min, y_pitch_max=y_pitch_max,

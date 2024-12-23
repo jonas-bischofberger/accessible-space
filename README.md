@@ -100,13 +100,13 @@ for _, row in df_tracking[(df_tracking["frame_id"] == 0) & (df_tracking["player_
 For a quick and visual impression of the model, you can also run these examples within a Streamlit app using:
 
 ```bash
-pip install accessible_space[full]  # install additional dependencies, such as Streamlit
+pip install accessible_space[full]  # additional dependencies for dashboards, such as Streamlit
 python -m accessible_space demo
 ```
 
 ### Reproduce my validation
 
-To reproduce my validation, run this command. Feel free to experiment and play around with the parameters of the validation routine to get an impression of the predictive accuracy of the model.
+My validation can be reproduced with this command which will open up a Streamlit dashboard. Feel free to experiment and play around with the parameters of the validation routine to get an impression of the predictive accuracy of the model.
 
 ```bash
 pip install accessible_space[full]

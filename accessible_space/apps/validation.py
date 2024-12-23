@@ -726,13 +726,14 @@ def validate_multiple_matches(
     data["parameters"] = []
     st.write("n_steps")
     st.write(n_steps)
-    progress_bar_text = st.empty()
-    progress_bar = st.progress(0)
+    # progress_bar_text = st.empty()
+    # progress_bar = st.progress(0)
+    from accessible_space import progress_bar
     display_df = st.empty()
-    for i in tqdm.tqdm(range(n_steps), desc="Simulation", total=n_steps):
+    for i in progress_bar(range(n_steps), desc="Simulation", total=n_steps):
         gc.collect()
-        progress_bar_text.text(f"Simulation {i + 1}/{n_steps}")
-        progress_bar.progress((i + 1) / n_steps)
+        # progress_bar_text.text(f"Simulation {i + 1}/{n_steps}")
+        # progress_bar.progress((i + 1) / n_steps)
         if use_prefit:
             random_paramter_assignment = {}
         else:
@@ -760,6 +761,7 @@ def validate_multiple_matches(
 
                 n_frames_after_pass_for_v0=5, fallback_v0=10,
                 chunk_size=chunk_size,
+                use_progress_bar=False,
 
                 **random_paramter_assignment,
             )
