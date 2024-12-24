@@ -327,6 +327,24 @@ def get_das_gained(
     normalize=_DEFAULT_NORMALIZE,
     use_efficient_sigmoid=_DEFAULT_USE_EFFICIENT_SIGMOID,
 ):
+    """
+    >>> pd.set_option("display.max_columns", None)
+    >>> pd.set_option("display.expand_frame_repr", False)
+    >>> import accessible_space.tests.resources as res
+    >>> df_passes, df_tracking = res.df_passes, res.df_tracking
+    >>> df_passes
+       frame_id  target_frame_id player_id receiver_id team_id     x     y  x_target  y_target  pass_outcome receiver_team_id         event_string
+    0         0                6         A           B    Home  -0.1   0.0        20        30             1             Home   0: Pass A -> B (1)
+    1         6                9         B           X    Home  25.0  30.0        15        30             0             Away   6: Pass B -> X (0)
+    2        14               16         C           Y    Home -13.8  40.1        49        -1             0             Away  14: Pass C -> Y (0)
+    >>> result = get_das_gained(df_passes, df_tracking, tracking_frame_col="frame_id", event_frame_col="frame_id", event_target_frame_col="target_frame_id", tracking_player_col="player_id", tracking_team_col="team_id", ball_tracking_player_id="ball", tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", event_start_x_col="x", event_start_y_col="y", event_team_col="team_id")
+    >>> df_passes["AS_Gained"], df_passes["DAS_Gained"], df_passes["frame_index"], simulation_result = result.as_gained, result.das_gained, result.frame_index, result.simulation_result
+    >>> df_passes
+       frame_id  target_frame_id player_id receiver_id team_id     x     y  x_target  y_target  pass_outcome receiver_team_id         event_string    AS_Gained  DAS_Gained  frame_index
+    0         0                6         A           B    Home  -0.1   0.0        20        30             1             Home   0: Pass A -> B (1)   208.454914  117.860586            0
+    1         6                9         B           X    Home  25.0  30.0        15        30             0             Away   6: Pass B -> X (0) -2908.185460 -142.524467            1
+    2        14               16         C           Y    Home -13.8  40.1        49        -1             0             Away  14: Pass C -> Y (0) -3204.879249 -105.988968            3
+    """
     _check_presence_of_required_columns(df_passes, "df_passes", ["event_success_col", "event_frame_col", "event_target_frame_col"], [event_success_col, event_frame_col, event_target_frame_col])
     _check_presence_of_required_columns(df_tracking, "df_tracking", ["tracking_frame_col", "tracking_x_col", "tracking_y_col", "tracking_player_col", "tracking_team_col"], [tracking_frame_col, tracking_x_col, tracking_y_col, tracking_player_col, tracking_team_col])
     _check_tracking_coordinate_ranges(df_tracking, tracking_x_col, tracking_y_col)
@@ -738,11 +756,11 @@ def get_dangerous_accessible_space(
     >>> df_tracking["AS"], df_tracking["DAS"], df_tracking["frame_index"], df_tracking["player_index"] = ret.acc_space, ret.das, ret.frame_index, ret.player_index
     >>> df_tracking.head(5)
        frame_id player_id team_id    x     y   vx    vy team_in_possession  period_id           AS        DAS  frame_index  player_index
-    0         0         A    Home -0.1  0.00  0.1  0.05               Home          0  2614.535277  23.766237            0           0.0
-    1         1         A    Home  0.0  0.05  0.1  0.05               Home          0  2606.966458  23.774396            1           0.0
-    2         2         A    Home  0.1  0.10  0.1  0.05               Home          0  2594.325545  23.746548            2           0.0
-    3         3         A    Home  0.2  0.15  0.1  0.05               Home          0  2593.725021  23.542271            3           0.0
-    4         4         A    Home  0.3  0.20  0.1  0.05               Home          0  2571.267814  23.575564            4           0.0
+    0         0         A    Home -0.1  0.00  0.1  0.05               Home          0  2573.888916  24.109976            0           0.0
+    1         1         A    Home  0.0  0.05  0.1  0.05               Home          0  2562.712818  24.054464            1           0.0
+    2         2         A    Home  0.1  0.10  0.1  0.05               Home          0  2557.590964  24.155584            2           0.0
+    3         3         A    Home  0.2  0.15  0.1  0.05               Home          0  2575.215763  23.993002            3           0.0
+    4         4         A    Home  0.3  0.20  0.1  0.05               Home          0  2575.643974  23.906413            4           0.0
     """
 
     missing_columns = [(parameter_name, col) for parameter_name, col in [("frame_col", frame_col), ("player_col", player_col), ("team_col", team_col), ("x_col", x_col), ("y_col", y_col), ("vx_col", vx_col), ("vy_col", vy_col), ("team_in_possession_col", team_in_possession_col)] if col not in df_tracking.columns]

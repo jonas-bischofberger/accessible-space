@@ -7,7 +7,6 @@ import accessible_space
 import numpy as np
 
 import accessible_space.utility
-import accessible_space.apps.qualitative_profiling
 
 # import streamlit as st
 
