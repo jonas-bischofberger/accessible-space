@@ -237,11 +237,6 @@ def get_metrica_data():
         with st.spinner(f"Downloading tracking data from dataset {dataset_nr}"):
             df_tracking = get_metrica_tracking_data(dataset_nr)
 
-        st.write("df_tracking.head()")
-        st.write(df_tracking.head())
-
-        df_tracking = df_tracking.iloc[2:]
-
         df_tracking = df_tracking[df_tracking["frame_id"].isin(frames_to_load)]
 
         df_tracking[[col for col in df_tracking.columns if col.endswith("_x")]] = (df_tracking[[col for col in df_tracking.columns if col.endswith("_x")]].astype(float) - 0.5) * 105
