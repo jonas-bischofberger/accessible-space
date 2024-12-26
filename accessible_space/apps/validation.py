@@ -1006,8 +1006,8 @@ def validation_dashboard():
             plot_pass(p4ss, df_tracking)
 
     # validate()
-    n_steps = st.number_input("Number of simulations", value=3000)
-    use_prefit = st.checkbox("Use prefit", value=False)  # TODO set to True
+    n_steps = st.number_input("Number of simulations", value=200)
+    use_prefit = st.checkbox("Use prefit", value=True)  # TODO set to True
     validate_multiple_matches(
         dfs_tracking=dfs_tracking, dfs_passes=dfs_passes, outcome_col="success", n_steps=n_steps, use_prefit=use_prefit
     )

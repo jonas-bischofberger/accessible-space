@@ -57,7 +57,8 @@ PARAMETER_BOUNDS = {
     # Core simulation model
     "pass_start_location_offset": [-5, 5],
     "time_offset_ball": [-5, 5],  # very small and negative values can lead to artifacts around the passer (bc passer cannot reach the ball), also in conjunction with location offset
-    "radial_gridsize": [4.99, 5.01],
+    # "radial_gridsize": [4.99, 5.01],
+    "radial_gridsize": [3, 7],
     "b0": [-20, 15],
     "b1": [-250, 0],
     "player_velocity": [2, 35],
