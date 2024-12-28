@@ -621,11 +621,10 @@ def simulate_parameters(df_training, dfs_tracking, use_prefit, seed, chunk_size=
     # progress_bar_text.text(f"Simulation {i + 1}/{n_steps}")
     # progress_bar.progress((i + 1) / n_steps)
     if use_prefit:
-        random_paramter_assignment = {}
+        # random_paramter_assignment = {}
+        random_paramter_assignment = {"a_max":19.63112767910463,"b0":14.099047871403357,"b1":-28.36160125007862,"exclude_passer":True,"inertial_seconds":0.23637372361711856,"keep_inertial_velocity":True,"n_v0":4.429885820781852,"normalize":False,"pass_start_location_offset":-0.600606907532649,"player_velocity":2.8583256377063186,"radial_gridsize":4.9930557250382535,"time_offset_ball":-1.2964803442646256,"tol_distance":4.2892585565328725,"use_approx_two_point":True,"use_efficient_sigmoid":True,"use_event_coordinates_as_ball_position":True,"use_fixed_v0":True,"use_max":True,"use_poss":True,"v0_max":18.070813823786477,"v0_min":2.6103168577496096,"v0_prob_aggregation_mode":"max","v_max":26.255635210963835}
     else:
         random_paramter_assignment = _choose_random_parameters(PARAMETER_BOUNDS)
-
-
 
     data_simres = {
         "xc": [],
@@ -820,27 +819,39 @@ def validate_multiple_matches(
     df = None
     expensive_cols = ["passes_json", "parameters"]
     # very_expensive_cols = ["passes_json"]
-    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
-        tasks = [executor.submit(simulate_parameters, df_training, dfs_tracking, use_prefit, np.random.randint(0, 2**16 - 1), chunk_size, outcome_col) for _ in range(n_steps)]
-        for i, future in enumerate(progress_bar(concurrent.futures.as_completed(tasks), total=n_steps)):
-            data = future.result()
-            df_data = pd.Series(data).to_frame().T
-            df_data["step_nr"] = i
-            front_cols = ["step_nr", "logloss", "brier_score", "auc", "brier_score_synthetic", "logloss_synthetic", "auc_synthetic", "brier_score_real", "logloss_real", "auc_real"]
-            cols = front_cols + [col for col in df_data.columns if col not in front_cols]
-            df_data = df_data[cols]
 
-            if df is None:
-                df = df_data
-            else:
-                df = pd.concat([df, df_data], axis=0)
-                df = df.sort_values("logloss", ascending=True).reset_index(drop=True)
-                # if len(df) > 20:
-                #     df.loc[20:, expensive_cols] = np.nan
-                if len(df) > 1:
-                    df.loc[1:, expensive_cols] = np.nan
+    if not use_prefit:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+            tasks = [executor.submit(simulate_parameters, df_training, dfs_tracking, use_prefit, np.random.randint(0, 2**16 - 1), chunk_size, outcome_col) for _ in range(n_steps)]
+            for i, future in enumerate(progress_bar(concurrent.futures.as_completed(tasks), total=n_steps)):
+                data = future.result()
+                df_data = pd.Series(data).to_frame().T
+                df_data["step_nr"] = i
+                front_cols = ["step_nr", "logloss", "brier_score", "auc", "brier_score_synthetic", "logloss_synthetic", "auc_synthetic", "brier_score_real", "logloss_real", "auc_real"]
+                cols = front_cols + [col for col in df_data.columns if col not in front_cols]
+                df_data = df_data[cols]
 
-            display_df.write(df.head(20))
+                if df is None:
+                    df = df_data
+                else:
+                    df = pd.concat([df, df_data], axis=0)
+                    df = df.sort_values("logloss", ascending=True).reset_index(drop=True)
+                    # if len(df) > 20:
+                    #     df.loc[20:, expensive_cols] = np.nan
+                    if len(df) > 1:
+                        df.loc[1:, expensive_cols] = np.nan
+
+                display_df.write(df.head(20))
+    else:
+        ret = simulate_parameters(df_training, dfs_tracking, use_prefit, np.random.randint(0, 2**16 - 1), chunk_size, outcome_col)
+        data = ret
+        df_data = pd.Series(data).to_frame().T
+        df_data["step_nr"] = 0
+        front_cols = ["step_nr", "logloss", "brier_score", "auc", "brier_score_synthetic", "logloss_synthetic", "auc_synthetic", "brier_score_real", "logloss_real", "auc_real"]
+        cols = front_cols + [col for col in df_data.columns if col not in front_cols]
+        df_data = df_data[cols]
+        df = df_data
+        display_df.write(df.head(20))
 
     # df_training_results = pd.DataFrame(dfs).sort_values("logloss", ascending=True)
     df_training_results = df.sort_values("logloss", ascending=True).reset_index(drop=True)
@@ -1147,7 +1158,7 @@ def validation_dashboard():
 
     # validate()
     n_steps = st.number_input("Number of simulations", value=12000)
-    use_prefit = st.checkbox("Use prefit", value=False)  # TODO set to True
+    use_prefit = st.checkbox("Use prefit", value=True)  # TODO set to True
     validate_multiple_matches(
         dfs_tracking=dfs_tracking, dfs_passes=dfs_passes, outcome_col="success", n_steps=n_steps, use_prefit=use_prefit
     )
