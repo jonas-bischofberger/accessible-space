@@ -586,6 +586,109 @@ def plot_pass(p4ss, df_tracking):
     st.write(plt.gcf())
 
 
+def _choose_random_parameters(parameter_to_bounds):
+    random_parameters = {}
+    for param, bounds in parameter_to_bounds.items():
+        # st.write("B", param, bounds, str(type(bounds[0])), str(type(bounds[-1])), "bool", isinstance(bounds[0], bool), isinstance(bounds[0], int), isinstance(bounds[0], float))
+        if isinstance(bounds[0], bool):  # order matters, bc bool is also int
+            random_parameters[param] = np.random.choice([bounds[0], bounds[-1]])
+        elif isinstance(bounds[0], int) or isinstance(bounds[0], float):
+            random_parameters[param] = np.random.uniform(bounds[0], bounds[-1])
+        elif isinstance(bounds[0], str):
+            random_parameters[param] = np.random.choice(bounds)
+        else:
+            raise NotImplementedError(f"Unknown type: {type(bounds[0])}")
+    return random_parameters
+
+
+def simulate_parameters(df_training, dfs_tracking, use_prefit, seed, chunk_size=200, outcome_col="success"):
+    np.random.seed(seed)
+
+    data = {
+        # "brier_score": [],
+        # "logloss": [],
+        # "auc": [],
+        # "brier_score_synthetic": [],
+        # # "logloss_synthetic": [],
+        # # "auc_synthetic": [],
+        # "brier_score_real": [],
+        # "logloss_real": [],
+        # "auc_real": [],
+        # "passes_json": [],
+        # "parameters": [],
+    }
+
+    # progress_bar_text.text(f"Simulation {i + 1}/{n_steps}")
+    # progress_bar.progress((i + 1) / n_steps)
+    if use_prefit:
+        random_paramter_assignment = {}
+    else:
+        random_paramter_assignment = _choose_random_parameters(PARAMETER_BOUNDS)
+
+
+
+    data_simres = {
+        "xc": [],
+        "success": [],
+        "is_synthetic": [],
+    }
+    dfs_training_passes = []
+    for dataset_nr, df_training_passes in df_training.groupby("dataset_nr"):
+        df_training_passes = df_training_passes.copy()
+        df_tracking = dfs_tracking[dataset_nr].copy()
+        ret = get_expected_pass_completion(
+            df_training_passes, df_tracking, event_frame_col="frame_id", tracking_frame_col="frame_id",
+            event_start_x_col="coordinates_x",
+            event_start_y_col="coordinates_y", event_end_x_col="end_coordinates_x",
+            event_end_y_col="end_coordinates_y",
+            event_team_col="team_id",
+            event_player_col="player_id", tracking_player_col="player_id", tracking_team_col="team_id",
+            ball_tracking_player_id="ball",
+            tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", tracking_v_col="v",
+            tracking_team_in_possession_col="ball_possession",
+
+            n_frames_after_pass_for_v0=5, fallback_v0=10,
+            chunk_size=chunk_size,
+            use_progress_bar=False,
+
+            **random_paramter_assignment,
+        )
+        xc = ret.xc
+        df_training_passes["xc"] = xc
+        data_simres["xc"].extend(xc.tolist())
+        data_simres["success"].extend(df_training_passes[outcome_col].tolist())
+        data_simres["is_synthetic"].extend(df_training_passes["is_synthetic"].tolist())
+
+        # print(dataset_nr, "lens data_simres", {k: len(v) for k, v in data_simres.items()})
+
+        dfs_training_passes.append(df_training_passes.copy())
+
+    # print("B")
+    df_training_passes = pd.concat(dfs_training_passes)
+    training_passes_json = df_training_passes.to_json(orient="records")
+    data["passes_json"] = training_passes_json
+    # print("C")
+
+    df_simres = pd.DataFrame(data_simres)
+    data["parameters"] = random_paramter_assignment
+    for key, value in random_paramter_assignment.items():
+        data[key] = value
+    # print("D")
+
+    scores = get_scores(df_simres, df_training[outcome_col].mean(), outcome_col=outcome_col)
+    for key, value in scores.items():
+        # data[key].append(value)
+        data[key] = value
+    # print("E")
+
+    # df_to_display = pd.DataFrame(data).sort_values("logloss", ascending=True)
+    # df_to_display.iloc[1:, df_to_display.columns.get_loc("passes_json")] = np.nan
+    # df_to_display.iloc[1:, df_to_display.columns.get_loc("parameters")] = np.nan
+    # display_df.write(df_to_display.head(20))
+
+    return data
+
+
 def validate_multiple_matches(
     dfs_tracking, dfs_passes, n_steps=100, training_size=0.7, use_prefit=True,
     outcome_col="success", tracking_team_col="team_id", event_team_col="team_id",
@@ -595,7 +698,8 @@ def validate_multiple_matches(
     plot_synthetic_passes = st.button("Plot synthetic passes (unused)")
     exclude_synthetic_passes_from_training_set = st.checkbox("Exclude synthetic passes from training set", value=False)
     exclude_synthetic_passes_from_test_set = st.checkbox("Exclude synthetic passes from test set", value=False)
-    chunk_size = st.number_input("Chunk size", value=200, min_value=1, max_value=None)
+    chunk_size = st.number_input("Chunk size", value=100, min_value=1, max_value=None)
+    max_workers = st.number_input("Max workers", value=5, min_value=1, max_value=None)
 
     ## Add synthetic passes
     @st.cache_resource
@@ -691,20 +795,6 @@ def validate_multiple_matches(
     # st.write("Test scores")
     # st.write(test_scores)
 
-    def _choose_random_parameters(parameter_to_bounds):
-        random_parameters = {}
-        for param, bounds in parameter_to_bounds.items():
-            # st.write("B", param, bounds, str(type(bounds[0])), str(type(bounds[-1])), "bool", isinstance(bounds[0], bool), isinstance(bounds[0], int), isinstance(bounds[0], float))
-            if isinstance(bounds[0], bool):  # order matters, bc bool is also int
-                random_parameters[param] = np.random.choice([bounds[0], bounds[-1]])
-            elif isinstance(bounds[0], int) or isinstance(bounds[0], float):
-                random_parameters[param] = np.random.uniform(bounds[0], bounds[-1])
-            elif isinstance(bounds[0], str):
-                random_parameters[param] = np.random.choice(bounds)
-            else:
-                raise NotImplementedError(f"Unknown type: {type(bounds[0])}")
-        return random_parameters
-
     data = {
         "brier_score": [],
         "logloss": [],
@@ -725,82 +815,131 @@ def validate_multiple_matches(
     # progress_bar = st.progress(0)
     from accessible_space import progress_bar
     display_df = st.empty()
-    for i in progress_bar(range(n_steps), desc="Simulation", total=n_steps):
-        gc.collect()
-        # progress_bar_text.text(f"Simulation {i + 1}/{n_steps}")
-        # progress_bar.progress((i + 1) / n_steps)
-        if use_prefit:
-            random_paramter_assignment = {}
-        else:
-            random_paramter_assignment = _choose_random_parameters(PARAMETER_BOUNDS)
 
-        data_simres = {
-            "xc": [],
-            "success": [],
-            "is_synthetic": [],
-        }
-        dfs_training_passes = []
-        for dataset_nr, df_training_passes in df_training.groupby("dataset_nr"):
-            df_training_passes = df_training_passes.copy()
-            df_tracking = dfs_tracking[dataset_nr].copy()
-            ret = get_expected_pass_completion(
-                df_training_passes, df_tracking, event_frame_col="frame_id", tracking_frame_col="frame_id",
-                event_start_x_col="coordinates_x",
-                event_start_y_col="coordinates_y", event_end_x_col="end_coordinates_x",
-                event_end_y_col="end_coordinates_y",
-                event_team_col="team_id",
-                event_player_col="player_id", tracking_player_col="player_id", tracking_team_col="team_id",
-                ball_tracking_player_id="ball",
-                tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", tracking_v_col="v",
-                tracking_team_in_possession_col="ball_possession",
+    import concurrent.futures
+    df = None
+    expensive_cols = ["passes_json", "parameters"]
+    # very_expensive_cols = ["passes_json"]
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+        tasks = [executor.submit(simulate_parameters, df_training, dfs_tracking, use_prefit, np.random.randint(0, 2**16 - 1), chunk_size, outcome_col) for _ in range(n_steps)]
+        for i, future in enumerate(progress_bar(concurrent.futures.as_completed(tasks), total=n_steps)):
+            data = future.result()
+            df_data = pd.Series(data).to_frame().T
+            df_data["step_nr"] = i
+            front_cols = ["step_nr", "logloss", "brier_score", "auc", "brier_score_synthetic", "logloss_synthetic", "auc_synthetic", "brier_score_real", "logloss_real", "auc_real"]
+            cols = front_cols + [col for col in df_data.columns if col not in front_cols]
+            df_data = df_data[cols]
 
-                n_frames_after_pass_for_v0=5, fallback_v0=10,
-                chunk_size=chunk_size,
-                use_progress_bar=False,
+            if df is None:
+                df = df_data
+            else:
+                df = pd.concat([df, df_data], axis=0)
+                df = df.sort_values("logloss", ascending=True).reset_index(drop=True)
+                # if len(df) > 20:
+                #     df.loc[20:, expensive_cols] = np.nan
+                if len(df) > 1:
+                    df.loc[1:, expensive_cols] = np.nan
 
-                **random_paramter_assignment,
-            )
-            xc = ret.xc
-            df_training_passes["xc"] = xc
-            data_simres["xc"].extend(xc.tolist())
-            data_simres["success"].extend(df_training_passes[outcome_col].tolist())
-            data_simres["is_synthetic"].extend(df_training_passes["is_synthetic"].tolist())
+            display_df.write(df.head(20))
 
-            print("lens data_simres", {k: len(v) for k, v in data_simres.items()})
+    # df_training_results = pd.DataFrame(dfs).sort_values("logloss", ascending=True)
+    df_training_results = df.sort_values("logloss", ascending=True).reset_index(drop=True)
+    st.write("df_training_results")
+    st.write(df_training_results)
 
-            dfs_training_passes.append(df_training_passes.copy())
+    # move logloss column and brier and auc etc to front
+    cols = df_training_results.columns.tolist()
+    front_cols = ["step_nr", "logloss", "brier_score", "auc", "brier_score_synthetic", "logloss_synthetic", "auc_synthetic", "brier_score_real", "logloss_real", "auc_real"]
+    df_training_results[front_cols] = df_training_results[front_cols].astype(float)
+    cols = front_cols + [col for col in cols if col not in front_cols]
+    df_training_results = df_training_results[cols]
+    st.write("df_training_results")
+    st.write(df_training_results)
 
-        df_training_passes = pd.concat(dfs_training_passes)
-        training_passes_json = df_training_passes.to_json(orient="records")
-        data["passes_json"].append(training_passes_json)
+    df_training_results.to_csv("df_training_results.csv", sep=";")
 
-        df_simres = pd.DataFrame(data_simres)
-        data["parameters"].append(random_paramter_assignment)
-        for key, value in random_paramter_assignment.items():
-            data.setdefault(key, []).append(value)
+    # raise NotImplementedError("Rest")
 
-        scores = get_scores(df_simres, df_training[outcome_col].mean(), outcome_col=outcome_col)
-        for key, value in scores.items():
-            # data[key].append(value)
-            data.setdefault(key, []).append(value)
+    # for i in progress_bar(range(n_steps), desc="Simulation", total=n_steps):
+    #     gc.collect()
+    #     # progress_bar_text.text(f"Simulation {i + 1}/{n_steps}")
+    #     # progress_bar.progress((i + 1) / n_steps)
+    #     if use_prefit:
+    #         random_paramter_assignment = {}
+    #     else:
+    #         random_paramter_assignment = _choose_random_parameters(PARAMETER_BOUNDS)
+    #
+    #     data_simres = {
+    #         "xc": [],
+    #         "success": [],
+    #         "is_synthetic": [],
+    #     }
+    #     dfs_training_passes = []
+    #     for dataset_nr, df_training_passes in df_training.groupby("dataset_nr"):
+    #         df_training_passes = df_training_passes.copy()
+    #         df_tracking = dfs_tracking[dataset_nr].copy()
+    #         ret = get_expected_pass_completion(
+    #             df_training_passes, df_tracking, event_frame_col="frame_id", tracking_frame_col="frame_id",
+    #             event_start_x_col="coordinates_x",
+    #             event_start_y_col="coordinates_y", event_end_x_col="end_coordinates_x",
+    #             event_end_y_col="end_coordinates_y",
+    #             event_team_col="team_id",
+    #             event_player_col="player_id", tracking_player_col="player_id", tracking_team_col="team_id",
+    #             ball_tracking_player_id="ball",
+    #             tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", tracking_v_col="v",
+    #             tracking_team_in_possession_col="ball_possession",
+    #
+    #             n_frames_after_pass_for_v0=5, fallback_v0=10,
+    #             chunk_size=chunk_size,
+    #             use_progress_bar=False,
+    #
+    #             **random_paramter_assignment,
+    #         )
+    #         xc = ret.xc
+    #         df_training_passes["xc"] = xc
+    #         data_simres["xc"].extend(xc.tolist())
+    #         data_simres["success"].extend(df_training_passes[outcome_col].tolist())
+    #         data_simres["is_synthetic"].extend(df_training_passes["is_synthetic"].tolist())
+    #
+    #         print("lens data_simres", {k: len(v) for k, v in data_simres.items()})
+    #
+    #         dfs_training_passes.append(df_training_passes.copy())
+    #
+    #     df_training_passes = pd.concat(dfs_training_passes)
+    #     training_passes_json = df_training_passes.to_json(orient="records")
+    #     data["passes_json"].append(training_passes_json)
+    #
+    #     df_simres = pd.DataFrame(data_simres)
+    #     data["parameters"].append(random_paramter_assignment)
+    #     for key, value in random_paramter_assignment.items():
+    #         data.setdefault(key, []).append(value)
+    #
+    #     scores = get_scores(df_simres, df_training[outcome_col].mean(), outcome_col=outcome_col)
+    #     for key, value in scores.items():
+    #         # data[key].append(value)
+    #         data.setdefault(key, []).append(value)
+    #
+    #     df_to_display = pd.DataFrame(data).sort_values("logloss", ascending=True)
+    #     df_to_display.iloc[1:, df_to_display.columns.get_loc("passes_json")] = np.nan
+    #     df_to_display.iloc[1:, df_to_display.columns.get_loc("parameters")] = np.nan
+    #     display_df.write(df_to_display.head(20))
+    #
+    #     gc.collect()
+    #
+    #     # write size of "data" in GB
+    #     # import sys
+    #     # st.write("Size of 'data' in GB:", round(sum(sys.getsizeof(value) for value in data.values()) / 1024**3, 2))
+    #
+    #     if use_prefit:
+    #         break
+    #
 
-        df_to_display = pd.DataFrame(data).sort_values("logloss", ascending=True)
-        df_to_display.iloc[1:, df_to_display.columns.get_loc("passes_json")] = np.nan
-        df_to_display.iloc[1:, df_to_display.columns.get_loc("parameters")] = np.nan
-        display_df.write(df_to_display.head(20))
-
-        gc.collect()
-
-        # write size of "data" in GB
-        # import sys
-        # st.write("Size of 'data' in GB:", round(sum(sys.getsizeof(value) for value in data.values()) / 1024**3, 2))
-
-        if use_prefit:
-            break
-
-    df_training_results = pd.DataFrame(data)
+    # df_training_results = pd.DataFrame(data)
     # st.write("df_training_results")
     # st.write(df_training_results)
+
+    st.write(df_training_results.describe())
+    st.write(df_training_results.dtypes)
 
     best_index = df_training_results["logloss"].idxmin()
     best_parameters = df_training_results["parameters"][best_index]
@@ -831,8 +970,7 @@ def validate_multiple_matches(
     for (text, df) in [
         # ("Worst predictions", df_best_passes.sort_values("error", ascending=False)),
         # ("Best predictions", df_best_passes.sort_values("error", ascending=True)),
-        ("Worst synthetic predictions",
-         df_best_passes[df_best_passes["is_synthetic"]].sort_values("error", ascending=False)),
+        ("Worst synthetic predictions", df_best_passes[df_best_passes["is_synthetic"]].sort_values("error", ascending=False)),
         ("Best synthetic predictions",
          df_best_passes[df_best_passes["is_synthetic"]].sort_values("error", ascending=True)),
         ("Worst real predictions",
@@ -901,6 +1039,8 @@ def validate_multiple_matches(
 
     st.write("df_test_scores")
     st.write(df_test_scores)
+
+    df_test_scores.to_csv("df_test_scores.csv", sep=";")
 
     st.write("df_simres_test")
     st.write(df_simres_test)
@@ -1006,8 +1146,8 @@ def validation_dashboard():
             plot_pass(p4ss, df_tracking)
 
     # validate()
-    n_steps = st.number_input("Number of simulations", value=200)
-    use_prefit = st.checkbox("Use prefit", value=True)  # TODO set to True
+    n_steps = st.number_input("Number of simulations", value=12000)
+    use_prefit = st.checkbox("Use prefit", value=False)  # TODO set to True
     validate_multiple_matches(
         dfs_tracking=dfs_tracking, dfs_passes=dfs_passes, outcome_col="success", n_steps=n_steps, use_prefit=use_prefit
     )
@@ -1015,10 +1155,11 @@ def validation_dashboard():
 
 
 def main():
-    if len(sys.argv) == 2 and sys.argv[1] == "run_dashboard":
+    key_argument = "run_dashboard"
+    if len(sys.argv) == 2 and sys.argv[1] == key_argument:
         validation_dashboard()
     else:  # if script is called directly, call it again with streamlit
-        subprocess.run(['streamlit', 'run', os.path.abspath(__file__), "run_dashboard"], check=True)
+        subprocess.run(['streamlit', 'run', os.path.abspath(__file__), key_argument], check=True)
 
 
 if __name__ == '__main__':
