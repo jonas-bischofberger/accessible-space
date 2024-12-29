@@ -559,22 +559,17 @@ def get_expected_pass_completion(
     unique_frame_col = get_unused_column_name(df_passes.columns.tolist() + df_tracking.columns.tolist(), "unique_frame")
     df_passes[unique_frame_col] = _get_unique_frame_col(df_passes)
 
-    df_tracking_passes = df_passes[[event_frame_col, unique_frame_col]].merge(df_tracking, left_on=event_frame_col, right_on=tracking_frame_col, how="left")
-    # if use_event_coordinates_as_ball_position:
-    #     _check_presence_of_required_columns(df_passes, ["event_start_x_col", "event_start_y_col"], [event_start_x_col, event_start_y_col])
-    #
-    #     df_tracking_passes = df_tracking_passes.set_index(unique_frame_col)
-    #     df_passes_copy = df_passes.copy().set_index(unique_frame_col)
-    #
-    #     df_tracking_passes.loc[df_tracking_passes[tracking_player_col] == ball_tracking_player_id, tracking_x_col] = df_passes_copy[event_start_x_col]
-    #     df_tracking_passes.loc[df_tracking_passes[tracking_player_col] == ball_tracking_player_id, tracking_y_col] = df_passes_copy[event_start_y_col]
-    #     df_tracking_passes = df_tracking_passes.reset_index()
+    unique_event_start_x_col = get_unused_column_name(df_passes.columns.tolist() + df_tracking.columns.tolist(), "unique_event_start_x")  # avoid naming conflicts ("x" is often present in both tracking and event data)
+    unique_event_start_y_col = get_unused_column_name(df_passes.columns.tolist() + df_tracking.columns.tolist(), "unique_event_start_y")
+    df_passes[unique_event_start_x_col] = df_passes[event_start_x_col]
+    df_passes[unique_event_start_y_col] = df_passes[event_start_y_col]
+    df_tracking_passes = df_passes[[event_frame_col, unique_frame_col, unique_event_start_x_col, unique_event_start_y_col]].merge(df_tracking, left_on=event_frame_col, right_on=tracking_frame_col, how="left")
 
     if use_event_coordinates_as_ball_position:
         _check_presence_of_required_columns(df_passes, "df_passes", ["event_start_x_col", "event_start_y_col", "event_target_x_col", "event_target_y_col"], [event_start_x_col, event_start_y_col], additional_message="Either specify these columns or set 'use_event_coordinates_as_ball_position' to 'False'")
         i_ball = df_tracking_passes[tracking_player_col] == ball_tracking_player_id
-        df_tracking_passes.loc[i_ball, :] = _replace_column_values_except_nans(df_tracking_passes.loc[i_ball, :], tracking_frame_col, tracking_x_col, df_passes, event_frame_col, event_start_x_col)
-        df_tracking_passes.loc[i_ball, :] = _replace_column_values_except_nans(df_tracking_passes.loc[i_ball, :], tracking_frame_col, tracking_y_col, df_passes, event_frame_col, event_start_y_col)
+        df_tracking_passes.loc[i_ball, :] = _replace_column_values_except_nans(df_tracking_passes.loc[i_ball, :], unique_frame_col, tracking_x_col, df_tracking_passes.loc[i_ball, :], unique_frame_col, unique_event_start_x_col)
+        df_tracking_passes.loc[i_ball, :] = _replace_column_values_except_nans(df_tracking_passes.loc[i_ball, :], unique_frame_col, tracking_y_col, df_tracking_passes.loc[i_ball, :], unique_frame_col, unique_event_start_y_col)
 
     if use_event_team_as_team_in_possession:
         tracking_team_in_possession_col = get_unused_column_name(df_tracking_passes.columns, "team_in_possession")
