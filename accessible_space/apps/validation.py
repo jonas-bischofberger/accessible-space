@@ -485,14 +485,18 @@ def get_scores(_df, baseline_accuracy, outcome_col="success"):
         # Model scores
         data["brier_score"] = (df[outcome_col] - df["xc"]).pow(2).mean()
 
+        logloss_from_ci, logloss_ci_lower, logloss_ci_upper = bootstap_logloss_ci(df[outcome_col].values, df["xc"].values)
+        data["logloss_ci_lower"] = logloss_ci_lower
+        data["logloss_ci_upper"] = logloss_ci_upper
+
         # data["brier_score"] = sklearn.metrics.brier_score_loss(df[outcome_col], df["xc"])
 
         try:
-            data["logloss"] = sklearn.metrics.log_loss(df[outcome_col], df["xc"])
+            data["logloss"] = sklearn.metrics.log_loss(df[outcome_col], df["xc"], labels=np.array([0, 1]))
         except ValueError:
             data["logloss"] = np.nan
         try:
-            data["auc"] = sklearn.metrics.roc_auc_score(df[outcome_col], df["xc"])
+            data["auc"] = sklearn.metrics.roc_auc_score(df[outcome_col], df["xc"], labels=np.array([0, 1]))
         except ValueError:
             data["auc"] = np.nan
     else:
@@ -511,11 +515,11 @@ def get_scores(_df, baseline_accuracy, outcome_col="success"):
             except ValueError:
                 data[f"brier_score_{synth_str}"] = np.nan
             try:
-                data[f"logloss_{synth_str}"] = sklearn.metrics.log_loss(df_synth[outcome_col], df_synth["xc"])
+                data[f"logloss_{synth_str}"] = sklearn.metrics.log_loss(df_synth[outcome_col], df_synth["xc"], labels=np.array([0, 1]))
             except ValueError:
                 data[f"logloss_{synth_str}"] = np.nan
             try:
-                data[f"auc_{synth_str}"] = sklearn.metrics.roc_auc_score(df_synth[outcome_col], df_synth["xc"])
+                data[f"auc_{synth_str}"] = sklearn.metrics.roc_auc_score(df_synth[outcome_col], df_synth["xc"], labels=np.array([0, 1]))
             except ValueError:
                 data[f"auc_{synth_str}"] = np.nan
 
@@ -533,9 +537,6 @@ def get_scores(_df, baseline_accuracy, outcome_col="success"):
             data[f"baseline_auc_{synth_str}"] = sklearn.metrics.roc_auc_score(df_synth[outcome_col], [baseline_accuracy] * len(df_synth))
         except ValueError:
             data[f"baseline_auc_{synth_str}"] = np.nan
-
-    # TODO 95%-CI
-
 
     return data
 
