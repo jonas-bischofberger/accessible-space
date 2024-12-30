@@ -53,21 +53,21 @@ _DEFAULT_V0_PROB_AGGREGATION_MODE = "max"
 _DEFAULT_NORMALIZE = True
 _DEFAULT_USE_EFFICIENT_SIGMOID = True
 
-PARAMETER_BOUNDS = {
+PARAMETER_BOUNDS = {  # TODO run again with new bounds
     # Core simulation model
-    "pass_start_location_offset": [-5, 5],
-    "time_offset_ball": [-5, 5],  # very small and negative values can lead to artifacts around the passer (bc passer cannot reach the ball), also in conjunction with location offset
+    "pass_start_location_offset": [-3, 3],
+    "time_offset_ball": [-3, 3],  # very small and negative values can lead to artifacts around the passer (bc passer cannot reach the ball), also in conjunction with location offset
     # "radial_gridsize": [4.99, 5.01],
     "radial_gridsize": [3, 7],
-    "b0": [-20, 15],
-    "b1": [-250, 0],
-    "player_velocity": [2, 35],
+    "b0": [-40, 40],
+    "b1": [-500, 0],
+    "player_velocity": [2, 50],
     "keep_inertial_velocity": [True],  # , False],
     "use_max": [False, True],
     "v_max": [5, 40],
     "a_max": [10, 45],
     "inertial_seconds": [0.0, 1.5],  # , True],
-    "tol_distance": [0, 7],
+    "tol_distance": [0, 25],
     "use_approx_two_point": [False, True],
     "v0_prob_aggregation_mode": ["mean", "max"],
     "normalize": [False, True],
@@ -79,10 +79,7 @@ PARAMETER_BOUNDS = {
     "use_fixed_v0": [False, True],
     "v0_min": [1, 14.999],
     "v0_max": [15, 45],
-    "n_v0": [0.5, 7.5],
-
-    # Validation-only parameters
-    "use_event_coordinates_as_ball_position": [False, True],
+    "n_v0": [0.5, 15.5],
 }
 
 

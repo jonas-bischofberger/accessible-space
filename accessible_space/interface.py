@@ -351,6 +351,10 @@ def get_das_gained(
     _check_pitch_dimensions(x_pitch_min, x_pitch_max, y_pitch_min, y_pitch_max)
     _check_ball_in_tracking_data(df_tracking, tracking_player_col, ball_tracking_player_id)
 
+    # check for duplicate frames in pass data
+    if df_passes[event_frame_col].duplicated().any():
+        warnings.warn("Duplicate frames in pass data. This might currently lead to unexpected results for DAS Gained.")
+
     df_passes = df_passes.copy()
     df_passes[event_success_col] = df_passes[event_success_col].astype(int)
 
@@ -358,7 +362,6 @@ def get_das_gained(
     df_passes[unique_frame_col] = _get_unique_frame_col(df_passes)
 
     relevant_frames = set(df_passes[event_frame_col].tolist() + df_passes[event_target_frame_col].tolist())
-
     df_tracking_passes_and_receptions = df_tracking[df_tracking[tracking_frame_col].isin(relevant_frames)].copy()
 
     if use_event_coordinates_as_ball_position:
@@ -474,7 +477,7 @@ def get_expected_pass_completion(
 
     # Options
     clip_to_pitch=True,  # Whether to calculate xC as aggregated interception probability at the pitch boundary or at the end of the simulation (beyond pitch boundary)
-    use_event_coordinates_as_ball_position=False,
+    use_event_coordinates_as_ball_position=True,
     use_event_team_as_team_in_possession=True,
     chunk_size=50,
     additional_fields_to_return=("attack_cum_prob", "attack_cum_poss", "attack_prob_density", "attack_poss_density", "defense_cum_prob", "defense_cum_poss", "defense_prob_density", "defense_poss_density", "cum_p0", "p0_density", "player_cum_prob", "player_cum_poss", "player_prob_density", "player_poss_density"),  # Set to None to speed up calculation

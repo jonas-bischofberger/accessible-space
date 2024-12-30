@@ -1,3 +1,4 @@
+import functools
 import gc
 import math
 import sys
@@ -9,6 +10,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
+import psutil
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,42 +18,59 @@ import pandas as pd
 import requests
 import sklearn.model_selection
 import streamlit as st
-import tqdm
 import xmltodict
 import kloppy.metrica
-
-import importlib
 
 from accessible_space.utility import get_unused_column_name
 from accessible_space.interface import per_object_frameify_tracking_data, get_expected_pass_completion
 from accessible_space.core import PARAMETER_BOUNDS
-
-importlib.reload(sys.modules["accessible_space.utility"])
-importlib.reload(sys.modules["accessible_space.interface"])
-importlib.reload(sys.modules["accessible_space.core"])
 
 cache_dir = os.path.join(os.path.dirname(__file__), ".joblib-cache")
 memory = joblib.Memory(verbose=0)
 
 metrica_open_data_base_dir = "https://raw.githubusercontent.com/metrica-sports/sample-data/refs/heads/master/data"
 
+PREFIT_PARAMS = {"a_max": 34.98577765329907, "b0": 14.307280169228356, "b1": -231.7861293805111,
+                 "exclude_passer": True, "inertial_seconds": 1.1354178248836497,
+                 "keep_inertial_velocity": True, "n_v0": 7.454954615235632, "normalize": False,
+                 "pass_start_location_offset": -0.7978801423524864,
+                 "player_velocity": 31.023509491980597, "radial_gridsize": 5.456708513777949,
+                 "time_offset_ball": -0.6530280473299319, "tol_distance": 6.730245091897855,
+                 "use_approx_two_point": True, "use_efficient_sigmoid": True, "use_fixed_v0": True,
+                 "use_max": False, "use_poss": True, "v0_max": 27.829349276867582,
+                 "v0_min": 4.142039313955755, "v0_prob_aggregation_mode": "mean",
+                 "v_max": 7.055841492280175}
+
+
+def bootstap_logloss_ci(y_true, y_pred, n_iterations=10000, all_labels=np.array([0, 1]), conf_level=0.95):
+    bs_loglosses = []
+    for i in range(n_iterations):
+        indices = np.random.choice(len(y_true), size=len(y_true), replace=True)
+        y_true_sample = y_true[indices]
+        y_pred_sample = y_pred[indices]
+
+        bs_loglosses.append(sklearn.metrics.log_loss(y_true_sample, y_pred_sample, labels=all_labels))
+
+    bs_loglosses = np.array(sorted(bs_loglosses))
+
+    percentile_alpha = ((1 - conf_level) / 2) * 100
+    ci_lower = np.percentile(bs_loglosses, percentile_alpha)
+    ci_higher = np.percentile(bs_loglosses, 100 - percentile_alpha)
+
+    logloss = sklearn.metrics.log_loss(y_true, y_pred, labels=all_labels)
+    print(logloss, "95% CI", ci_lower, ci_higher)
+
+    return logloss, ci_lower, ci_higher
+
 
 @memory.cache
 def get_metrica_tracking_data(dataset_nr):
-    # TODO remove kloppy dependency
-    # home_data_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Home_Team.csv"
-    # away_data_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Away_Team.csv"
-    # df_tracking_home = pd.read_csv(home_data_url, skiprows=2)
-    # df_tracking_away = pd.read_csv(away_data_url, skiprows=2)
-    # df_tracking_home["team_id"] = "Home"
-    # df_tracking_away["team_id"] = "Away"
-    # df_tracking = pd.concat([df_tracking_home, df_tracking_away])
-
     dataset = kloppy.metrica.load_open_data(dataset_nr)  # , limit=100)
     df_tracking = dataset.to_df()
     return df_tracking
 
 
+# TODO rename
 @st.cache_resource
 def get_kloppy_events(dataset_nr):
     if dataset_nr in [1, 2]:
@@ -150,7 +169,7 @@ def get_kloppy_events(dataset_nr):
         i_subtypes_nan = ~df["subtypes.name"].isna()
         i_subtypes_0_nan = ~df["subtypes.0.name"].isna()
 
-        # check if the true's are mutually exclusive
+        # check if the True's are mutually exclusive
         assert not (i_subtypes_nan & i_subtypes_0_nan).any()
 
         df.loc[i_subtypes_nan, "subtypes.0.name"] = df.loc[i_subtypes_nan, "subtypes.name"]
@@ -515,8 +534,27 @@ def get_scores(_df, baseline_accuracy, outcome_col="success"):
         except ValueError:
             data[f"baseline_auc_{synth_str}"] = np.nan
 
+    # TODO 95%-CI
+
+
     return data
 
+
+def calibration_histogram(df, hist_col="xc", n_bins=None, binsize=None, add_text=True):
+    plt.figure()
+    st.write(df)
+    # if binsize is None and n_bins is not None:
+    #     df[bin_col] = pd.qcut(df[hist_col], n_bins, labels=False, duplicates="drop")
+    # elif binsize is not None and n_bins is None:
+    #     min_val = df[hist_col].min()
+    #     max_val = df[hist_col].max()
+    #     bin_edges = [min_val + i * binsize for i in range(int((max_val - min_val) / binsize) + 2)]
+    #     df[bin_col] = pd.cut(df[hist_col], bins=bin_edges, labels=False, include_lowest=True)
+    # else:
+    #     raise ValueError("Either n_bins or binsize must be specified")
+
+    plt.hist(df[hist_col], bins=n_bins)
+    return plt.gcf()
 
 def bin_nr_calibration_plot(df, prediction_col="xc", outcome_col="success", n_bins=None, binsize=None, add_text=True):
     bin_col = get_unused_column_name(df.columns, "bin")
@@ -601,8 +639,9 @@ def _choose_random_parameters(parameter_to_bounds):
     return random_parameters
 
 
-def simulate_parameters(df_training, dfs_tracking, use_prefit, seed, chunk_size=200, outcome_col="success"):
+def simulate_parameters(df_training, dfs_tracking, use_prefit, seed, chunk_size=200, outcome_col="success", calculate_passes_json=False):
     np.random.seed(seed)
+    gc.collect()
 
     data = {
         # "brier_score": [],
@@ -620,11 +659,11 @@ def simulate_parameters(df_training, dfs_tracking, use_prefit, seed, chunk_size=
 
     # progress_bar_text.text(f"Simulation {i + 1}/{n_steps}")
     # progress_bar.progress((i + 1) / n_steps)
+
     if use_prefit:
-        # random_paramter_assignment = {}
-        random_paramter_assignment = {"a_max":19.63112767910463,"b0":14.099047871403357,"b1":-28.36160125007862,"exclude_passer":True,"inertial_seconds":0.23637372361711856,"keep_inertial_velocity":True,"n_v0":4.429885820781852,"normalize":False,"pass_start_location_offset":-0.600606907532649,"player_velocity":2.8583256377063186,"radial_gridsize":4.9930557250382535,"time_offset_ball":-1.2964803442646256,"tol_distance":4.2892585565328725,"use_approx_two_point":True,"use_efficient_sigmoid":True,"use_event_coordinates_as_ball_position":True,"use_fixed_v0":True,"use_max":True,"use_poss":True,"v0_max":18.070813823786477,"v0_min":2.6103168577496096,"v0_prob_aggregation_mode":"max","v_max":26.255635210963835}
+        parameter_assignment = PREFIT_PARAMS
     else:
-        random_paramter_assignment = _choose_random_parameters(PARAMETER_BOUNDS)
+        parameter_assignment = _choose_random_parameters(PARAMETER_BOUNDS)
 
     data_simres = {
         "xc": [],
@@ -649,8 +688,9 @@ def simulate_parameters(df_training, dfs_tracking, use_prefit, seed, chunk_size=
             n_frames_after_pass_for_v0=5, fallback_v0=10,
             chunk_size=chunk_size,
             use_progress_bar=False,
+            use_event_coordinates_as_ball_position=True,  # necessary because validation uses duplicate frames (artificial passes)
 
-            **random_paramter_assignment,
+            **parameter_assignment,
         )
         xc = ret.xc
         df_training_passes["xc"] = xc
@@ -665,12 +705,15 @@ def simulate_parameters(df_training, dfs_tracking, use_prefit, seed, chunk_size=
     # print("B")
     df_training_passes = pd.concat(dfs_training_passes)
     training_passes_json = df_training_passes.to_json(orient="records")
-    data["passes_json"] = training_passes_json
+    if calculate_passes_json:
+        data["passes_json"] = training_passes_json
+    else:
+        data["passes_json"] = ""
     # print("C")
 
     df_simres = pd.DataFrame(data_simres)
-    data["parameters"] = random_paramter_assignment
-    for key, value in random_paramter_assignment.items():
+    data["parameters"] = parameter_assignment
+    for key, value in parameter_assignment.items():
         data[key] = value
     # print("D")
 
@@ -685,6 +728,8 @@ def simulate_parameters(df_training, dfs_tracking, use_prefit, seed, chunk_size=
     # df_to_display.iloc[1:, df_to_display.columns.get_loc("parameters")] = np.nan
     # display_df.write(df_to_display.head(20))
 
+    gc.collect()
+
     return data
 
 
@@ -697,7 +742,7 @@ def validate_multiple_matches(
     plot_synthetic_passes = st.button("Plot synthetic passes (unused)")
     exclude_synthetic_passes_from_training_set = st.checkbox("Exclude synthetic passes from training set", value=False)
     exclude_synthetic_passes_from_test_set = st.checkbox("Exclude synthetic passes from test set", value=False)
-    chunk_size = st.number_input("Chunk size", value=100, min_value=1, max_value=None)
+    chunk_size = st.number_input("Chunk size", value=50, min_value=1, max_value=None)
     max_workers = st.number_input("Max workers", value=5, min_value=1, max_value=None)
 
     ## Add synthetic passes
@@ -820,14 +865,63 @@ def validate_multiple_matches(
     expensive_cols = ["passes_json", "parameters"]
     # very_expensive_cols = ["passes_json"]
 
+    simulate_params_partial = functools.partial(simulate_parameters, df_training, dfs_tracking, use_prefit, chunk_size=chunk_size, outcome_col=outcome_col, calculate_passes_json=False)
+
+    use_parallel_processing = st.checkbox("Use parallel processing", value=True)
+
     if not use_prefit:
-        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
-            tasks = [executor.submit(simulate_parameters, df_training, dfs_tracking, use_prefit, np.random.randint(0, 2**16 - 1), chunk_size, outcome_col) for _ in range(n_steps)]
-            for i, future in enumerate(progress_bar(concurrent.futures.as_completed(tasks), total=n_steps)):
-                data = future.result()
+        if use_parallel_processing:
+            with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+                tasks = [executor.submit(simulate_params_partial, seed=np.random.randint(0, 2**16 - 1)) for _ in range(n_steps)]
+
+                for i, future in enumerate(progress_bar(concurrent.futures.as_completed(tasks), total=n_steps)):
+                    process = psutil.Process(os.getpid())
+                    process_id = os.getpid()
+                    # print(f"MAIN PROCESS {process_id}: Memory usage (MB): {process.memory_info().rss / 1024 ** 2:.2f} MB")
+                    # st.write(f"MAIN PROCESS {process_id}: Memory usage (MB): {process.memory_info().rss / 1024 ** 2:.2f} MB")
+
+                    data = future.result()
+                    df_data = pd.Series(data).to_frame().T
+                    df_data["step_nr"] = i
+                    front_cols = ["step_nr", "logloss", "brier_score", "auc", "brier_score_synthetic", "logloss_synthetic", "auc_synthetic", "brier_score_real", "logloss_real", "auc_real"]
+                    cols = front_cols + [col for col in df_data.columns if col not in front_cols]
+                    df_data = df_data[cols]
+
+                    if df is None:
+                        df = df_data
+                    else:
+                        df = pd.concat([df, df_data], axis=0)
+                        df = df.sort_values("logloss", ascending=True).reset_index(drop=True)
+                        # if len(df) > 20:
+                        #     df.loc[20:, expensive_cols] = np.nan
+                        if len(df) > 1:
+                            df.loc[1:, expensive_cols] = np.nan
+
+                    display_df.write(df.head(20))
+
+                try:
+                    del data
+                    del df_data
+                except Exception as e:
+                    st.write(e)
+
+                # memory_bytes = df.memory_usage(deep=True).sum()
+                # memory_mb = memory_bytes / (1024 ** 2)
+                # st.write(f"Memory usage of df (MB): {memory_mb:.2f} MB")
+
+                future = None
+                del future
+
+                # debug_memory_usage()
+
+                gc.collect()
+        else:
+            for i in range(n_steps):
+                data = simulate_params_partial(seed=np.random.randint(0, 2**16 - 1))
                 df_data = pd.Series(data).to_frame().T
                 df_data["step_nr"] = i
-                front_cols = ["step_nr", "logloss", "brier_score", "auc", "brier_score_synthetic", "logloss_synthetic", "auc_synthetic", "brier_score_real", "logloss_real", "auc_real"]
+                front_cols = ["step_nr", "logloss", "brier_score", "auc", "brier_score_synthetic", "logloss_synthetic",
+                              "auc_synthetic", "brier_score_real", "logloss_real", "auc_real"]
                 cols = front_cols + [col for col in df_data.columns if col not in front_cols]
                 df_data = df_data[cols]
 
@@ -842,8 +936,26 @@ def validate_multiple_matches(
                         df.loc[1:, expensive_cols] = np.nan
 
                 display_df.write(df.head(20))
+
+            try:
+                del data
+                del df_data
+            except Exception as e:
+                st.write(e)
+
+            # memory_bytes = df.memory_usage(deep=True).sum()
+            # memory_mb = memory_bytes / (1024 ** 2)
+            # st.write(f"Memory usage of df (MB): {memory_mb:.2f} MB")
+
+            future = None
+            del future
+
+            # debug_memory_usage()
+
+            gc.collect()
+
     else:
-        ret = simulate_parameters(df_training, dfs_tracking, use_prefit, np.random.randint(0, 2**16 - 1), chunk_size, outcome_col)
+        ret = simulate_parameters(df_training, dfs_tracking, use_prefit, np.random.randint(0, 2**16 - 1), chunk_size, outcome_col, calculate_passes_json=True)
         data = ret
         df_data = pd.Series(data).to_frame().T
         df_data["step_nr"] = 0
@@ -976,6 +1088,9 @@ def validate_multiple_matches(
     frag1()
     frag2()
 
+    st.write("HIST")
+    st.write(calibration_histogram(df_best_passes, n_bins=40))
+
     # st.stop()
 
     for (text, df) in [
@@ -1033,6 +1148,9 @@ def validate_multiple_matches(
             tracking_team_in_possession_col="ball_possession",
             tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", tracking_v_col="v",
             n_frames_after_pass_for_v0=5, fallback_v0=10, chunk_size=chunk_size,
+
+            use_event_coordinates_as_ball_position=True,
+
             **best_parameters,
         )
         data_simres["xc"].extend(ret.xc)
@@ -1056,8 +1174,20 @@ def validate_multiple_matches(
     st.write("df_simres_test")
     st.write(df_simres_test)
 
-    st.write(bin_nr_calibration_plot(df_simres_test, outcome_col=outcome_col, n_bins=10))
-    st.write(bin_nr_calibration_plot(df_simres_test, outcome_col=outcome_col, n_bins=20))
+    @st.fragment
+    def frag1_test():
+        n_bins = st.number_input("Number of bins for calibration plot", value=10, min_value=1, max_value=None, key="frag1_test")
+        st.write(bin_nr_calibration_plot(df_simres_test, outcome_col=outcome_col, n_bins=n_bins))
+
+    @st.fragment
+    def frag2_test():
+        binsize = st.number_input("Binsize for calibration plot", value=0.1, min_value=0.01, max_value=None, key="frag2_test")
+        st.write(bin_nr_calibration_plot(df_simres_test, outcome_col=outcome_col, binsize=binsize))
+
+    frag1_test()
+    frag2_test()
+    # st.write(bin_nr_calibration_plot(df_simres_test, outcome_col=outcome_col, n_bins=10))
+    # st.write(bin_nr_calibration_plot(df_simres_test, outcome_col=outcome_col, n_bins=20))
 
     # for n_bins in [5, 10, 20]:
     #     st.write(f"Calibration plot with {n_bins} bins")
@@ -1157,7 +1287,7 @@ def validation_dashboard():
             plot_pass(p4ss, df_tracking)
 
     # validate()
-    n_steps = st.number_input("Number of simulations", value=12000)
+    n_steps = st.number_input("Number of simulations", value=30000)
     use_prefit = st.checkbox("Use prefit", value=True)  # TODO set to True
     validate_multiple_matches(
         dfs_tracking=dfs_tracking, dfs_passes=dfs_passes, outcome_col="success", n_steps=n_steps, use_prefit=use_prefit
