@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
-import psutil
+# import psutil
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,14 +42,15 @@ PREFIT_PARAMS = {"a_max": 34.98577765329907, "b0": 14.307280169228356, "b1": -23
                  "v_max": 7.055841492280175}
 
 
-def bootstap_logloss_ci(y_true, y_pred, n_iterations=10000, all_labels=np.array([0, 1]), conf_level=0.95):
+def bootstap_metric_ci(y_true, y_pred, fnc, n_iterations=10000, conf_level=0.95, **kwargs):
     bs_loglosses = []
-    for i in range(n_iterations):
+    while len(bs_loglosses) < n_iterations:
         indices = np.random.choice(len(y_true), size=len(y_true), replace=True)
         y_true_sample = y_true[indices]
         y_pred_sample = y_pred[indices]
-
-        bs_loglosses.append(sklearn.metrics.log_loss(y_true_sample, y_pred_sample, labels=all_labels))
+        res = fnc(y_true_sample, y_pred_sample, **kwargs)
+        if res is not None:
+            bs_loglosses.append(res)
 
     bs_loglosses = np.array(sorted(bs_loglosses))
 
@@ -57,10 +58,29 @@ def bootstap_logloss_ci(y_true, y_pred, n_iterations=10000, all_labels=np.array(
     ci_lower = np.percentile(bs_loglosses, percentile_alpha)
     ci_higher = np.percentile(bs_loglosses, 100 - percentile_alpha)
 
-    logloss = sklearn.metrics.log_loss(y_true, y_pred, labels=all_labels)
-    print(logloss, "95% CI", ci_lower, ci_higher)
+    logloss = fnc(y_true, y_pred, **kwargs)
 
     return logloss, ci_lower, ci_higher
+
+
+
+def bootstap_logloss_ci(y_true, y_pred, n_iterations=10000, all_labels=np.array([0, 1]), conf_level=0.95):
+    return bootstap_metric_ci(y_true, y_pred, sklearn.metrics.log_loss, n_iterations, conf_level, labels=all_labels)
+
+
+
+def bootstrap_brier_ci(y_true, y_pred, n_iterations=10000, conf_level=0.95):
+    return bootstap_metric_ci(y_true, y_pred, sklearn.metrics.brier_score_loss, n_iterations, conf_level)
+
+
+
+def bootstrap_auc_ci(y_true, y_pred, n_iterations=10000, conf_level=0.95):
+    def error_handled_auc(y_true, y_pred):
+        try:
+            return sklearn.metrics.roc_auc_score(y_true, y_pred)
+        except ValueError:
+            return None
+    return bootstap_metric_ci(y_true, y_pred, error_handled_auc, n_iterations, conf_level)
 
 
 @memory.cache
@@ -333,7 +353,7 @@ def get_metrica_data():
     return datasets, dfs_event
 
 
-def check_synthetic_pass(p4ss, df_tracking_frame_attacking, v_receiver, v_receiver_threshold=4, v_players=10, pass_duration_threshold=0.5, pass_length_threshold=15):
+def check_synthetic_pass(p4ss, df_tracking_frame_attacking, v_receiver, v_receiver_threshold=4, v_players=10, pass_duration_threshold=0.5, pass_length_threshold=15, distance_to_origin_threshold=5):
     """ Checks whether a synthetic pass is guaranteed to be unsuccessful according to the criteria of our validation """
 
     p4ss["angle"] = math.atan2(p4ss["end_coordinates_y"] - p4ss["coordinates_y"], p4ss["end_coordinates_x"] - p4ss["coordinates_x"])
@@ -359,6 +379,7 @@ def check_synthetic_pass(p4ss, df_tracking_frame_attacking, v_receiver, v_receiv
 
         distance_to_target = math.sqrt((x_player - p4ss["end_coordinates_x"]) ** 2 + (y_player - p4ss["end_coordinates_y"]) ** 2)
         necessary_speed_to_reach_target = distance_to_target / pass_duration
+        distance_to_origin = math.sqrt((x_player - p4ss["coordinates_x"]) ** 2 + (y_player - p4ss["coordinates_y"]) ** 2)
 
         def can_intercept(x0b, y0b, vxb, vyb, x_A, y_A, v_A, duration):
             # Constants
@@ -386,7 +407,7 @@ def check_synthetic_pass(p4ss, df_tracking_frame_attacking, v_receiver, v_receiv
 
             return False
 
-        if necessary_speed_to_reach_target < v_players or can_intercept(x0_pass, y0_pass, v0x_pass, v0y_pass, x_player, y_player, v_players, pass_duration):
+        if necessary_speed_to_reach_target < v_players or distance_to_origin < distance_to_origin_threshold or can_intercept(x0_pass, y0_pass, v0x_pass, v0y_pass, x_player, y_player, v_players, pass_duration):
             return False  # Criterion 3: Pass cannot be received by any teammate
 
     return True
@@ -459,8 +480,8 @@ def add_synthetic_passes(
 
     return pd.concat([df_passes, df_synthetic_passes], axis=0)
 
-
-def get_scores(_df, baseline_accuracy, outcome_col="success"):
+# TODO change definition of impossible pass to exclude passes where opponent is around passer (e.g. 5 meter radius)
+def get_scores(_df, baseline_accuracy, outcome_col="success", add_confidence_intervals=True):
     df = _df.copy()
 
     data = {}
@@ -485,9 +506,16 @@ def get_scores(_df, baseline_accuracy, outcome_col="success"):
         # Model scores
         data["brier_score"] = (df[outcome_col] - df["xc"]).pow(2).mean()
 
-        logloss_from_ci, logloss_ci_lower, logloss_ci_upper = bootstap_logloss_ci(df[outcome_col].values, df["xc"].values)
-        data["logloss_ci_lower"] = logloss_ci_lower
-        data["logloss_ci_upper"] = logloss_ci_upper
+        if add_confidence_intervals:
+            logloss_from_ci, logloss_ci_lower, logloss_ci_upper = bootstap_logloss_ci(df[outcome_col].values, df["xc"].values)
+            data["logloss_ci_lower"] = logloss_ci_lower
+            data["logloss_ci_upper"] = logloss_ci_upper
+            _, brier_ci_lower, brier_ci_upper = bootstrap_brier_ci(df[outcome_col].values, df["xc"].values)
+            data["brier_ci_lower"] = logloss_ci_lower
+            data["brier_ci_upper"] = logloss_ci_upper
+            _, auc_ci_lower, auc_ci_upper = bootstrap_auc_ci(df[outcome_col].values, df["xc"].values)
+            data["auc_ci_lower"] = auc_ci_lower
+            data["auc_ci_upper"] = auc_ci_upper
 
         # data["brier_score"] = sklearn.metrics.brier_score_loss(df[outcome_col], df["xc"])
 
@@ -876,8 +904,8 @@ def validate_multiple_matches(
                 tasks = [executor.submit(simulate_params_partial, seed=np.random.randint(0, 2**16 - 1)) for _ in range(n_steps)]
 
                 for i, future in enumerate(progress_bar(concurrent.futures.as_completed(tasks), total=n_steps)):
-                    process = psutil.Process(os.getpid())
-                    process_id = os.getpid()
+                    # process = psutil.Process(os.getpid())
+                    # process_id = os.getpid()
                     # print(f"MAIN PROCESS {process_id}: Memory usage (MB): {process.memory_info().rss / 1024 ** 2:.2f} MB")
                     # st.write(f"MAIN PROCESS {process_id}: Memory usage (MB): {process.memory_info().rss / 1024 ** 2:.2f} MB")
 
