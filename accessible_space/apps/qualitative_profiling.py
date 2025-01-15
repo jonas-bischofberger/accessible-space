@@ -3,8 +3,10 @@ import importlib
 import matplotlib.pyplot as plt
 import pytest
 import streamlit as st
-import accessible_space.tests.test_model
 import wfork_streamlit_profiler
+
+import accessible_space.tests.test_model
+import accessible_space.tests.test_real_world_data
 
 
 def call_test_function_with_profiler(test_func, default_func):
@@ -52,9 +54,11 @@ def extract_params_and_run(test_func, run_only_once=False):
 
 
 def profiling_dashboard():
-    all_test_functions = dir(accessible_space.tests.test_model)
+    all_test_functions = dir(accessible_space.tests.test_real_world_data)
+    # all_test_functions = dir(accessible_space.tests.test_model)
     # all_test_functions = [f for f in all_test_functions if f.startswith("test_")]
-    selected_test_function = st.multiselect("Select test", all_test_functions, default=[])
+
+    selected_test_function = st.multiselect("Select test", all_test_functions, default=["test_real_world_data"])
     run_only_once = st.toggle("Run only once", value=False)
 
     profile = st.toggle("Profile", True)
@@ -62,7 +66,8 @@ def profiling_dashboard():
     if profile:
         profiler = wfork_streamlit_profiler.Profiler()
 
-    func = getattr(accessible_space.tests.test_model, selected_test_function[0])
+    # func = getattr(accessible_space.tests.test_model, selected_test_function[0])
+    func = getattr(accessible_space.tests.test_real_world_data, selected_test_function[0])
 
     if profile:
         profiler.start()
@@ -89,7 +94,7 @@ def parameter_exploration_dashboard():
     df_passes["xc"] = ret.xc
     df_passes["frame_index"] = ret.event_frame_index
 
-    ret2 = accessible_space.get_das_gained(df_passes, df_tracking)
+    ret2 = accessible_space.get_das_gained(df_passes, df_tracking, tracking_period_col="period_id")
     df_passes["DAS Gained"] = ret2.das_gained
 
     st.write(df_passes)
@@ -123,4 +128,4 @@ def parameter_exploration_dashboard():
 
 
 if __name__ == '__main__':
-    parameter_exploration_dashboard()
+    profiling_dashboard()

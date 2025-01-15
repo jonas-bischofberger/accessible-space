@@ -1,11 +1,12 @@
-import sys
 import os
 import subprocess
+import sys
+
+import matplotlib.pyplot as plt
+import streamlit as st
 
 import accessible_space
-import streamlit as st
 from accessible_space.tests.resources import df_passes, df_tracking  # Example data
-import matplotlib.pyplot as plt
 
 
 def readme_dashboard():
@@ -49,7 +50,7 @@ df_tracking["DAS"] = pitch_result.das""", language="python")
     ### 4. Access raw simulation results
     # Example 4.1: Expected interception rate = last value of the cumulative interception probability of the defending team
     st.write("#### Example 4.1: Expected interception rate")
-    pass_result = accessible_space.get_expected_pass_completion(df_passes, df_tracking)
+    pass_result = accessible_space.get_expected_pass_completion(df_passes, df_tracking, additional_fields_to_return=["defense_cum_prob"])
     pass_frame = 0  # We consider the pass at frame 0
     df_passes["frame_index"] = pass_result.event_frame_index  # frame_index implements a mapping from original frame number to indexes of the numpy arrays in the raw simulation_result.
     df_pass = df_passes[df_passes["frame_id"] == pass_frame]  # Consider the pass at frame 0
@@ -89,6 +90,7 @@ df_tracking["DAS"] = pitch_result.das""", language="python")
     # Example 4.3: Get (dangerous) accessible space of individual players
     st.write("#### Example 4.3: Get (dangerous) accessible space of individual players")
     df_tracking["player_index"] = pitch_result.player_index  # Mapping from player to index in simulation_result
+    pitch_result = accessible_space.get_dangerous_accessible_space(df_tracking, additional_fields_to_return=["player_poss_density"], period_col="period_id")
     areas = accessible_space.integrate_surfaces(pitch_result.simulation_result)  # Calculate surface integrals
     dangerous_areas = accessible_space.integrate_surfaces(pitch_result.dangerous_result)
     columns = st.columns(2)
@@ -106,11 +108,14 @@ df_tracking["DAS"] = pitch_result.das""", language="python")
         # Note: Individual space is not exclusive within a team. This is intentional because your team mates do not take away space from you in the competitive way that your opponents do.
 
 
-def main():
-    if len(sys.argv) == 2 and sys.argv[1] == "run_dashboard":
+def main(run_as_streamlit_app=True):
+    if run_as_streamlit_app:
+        if len(sys.argv) == 2 and sys.argv[1] == "run_dashboard":
+            readme_dashboard()
+        else:  # if script is called directly, call it again with streamlit
+            subprocess.run(['streamlit', 'run', os.path.abspath(__file__), "run_dashboard"], check=True)
+    else:
         readme_dashboard()
-    else:  # if script is called directly, call it again with streamlit
-        subprocess.run(['streamlit', 'run', os.path.abspath(__file__), "run_dashboard"], check=True)
 
 
 if __name__ == "__main__":

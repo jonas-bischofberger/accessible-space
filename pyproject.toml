@@ -1,6 +1,6 @@
 [project]
 name = "accessible_space"
-version = "0.1.11"
+version = "1.0.6"
 authors = [
   {name="Jonas Bischofberger", email="jonas.bischofberger@univie.ac.at"},
 ]
@@ -24,34 +24,37 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 
 [project.optional-dependencies]
-#full = [
-#    "scikit-learn",
-#    "kloppy>=3.15.0",
-#    "xmltodict",
-#    "joblib",
-#    "streamlit",
-#    "wfork-streamlit-profiler",
-#]
+full = [
+    "scikit-learn",
+    "kloppy>=3.15.0",
+    "xmltodict",
+    "joblib",
+    "streamlit",
+    "wfork-streamlit-profiler",
+    "brokenaxes",
+]
 
-#dev = [
-#    "scikit-learn",
-#    "kloppy>=3.15.0",
-#    "xmltodict",
-#    "joblib",
-#    "streamlit",
-#    "wfork-streamlit-profiler",
-#
-#    "pytest",
-#    "pytest-cov",
-#    "build",
-#    "twine",
-#    "setuptools",
-#    "tox",
-#]
+dev = [
+    "scikit-learn",
+    "kloppy>=3.15.0",
+    "xmltodict",
+    "joblib",
+    "streamlit",
+    "wfork-streamlit-profiler",
+    "brokenaxes",
+
+    "pytest",
+    "pytest-cov",
+    "build",
+    "twine",
+    "setuptools",
+    "tox",
+]
 
 
 [project.urls]
