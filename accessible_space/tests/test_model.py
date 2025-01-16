@@ -1,5 +1,6 @@
 import importlib
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -778,6 +779,7 @@ def test_fields_to_return_others_are_not_present(_get_data):
 def test_surface_plot(_get_data):
     _, _, df_tracking = _get_data()
     ret = accessible_space.get_dangerous_accessible_space(df_tracking, period_col=None, additional_fields_to_return=[field for field in accessible_space.ALL_OPTIONAL_FIELDS_TO_RETURN if "density" in field])
+    matplotlib.use("Agg")
 
     def _plot():
         plt.figure()

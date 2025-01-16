@@ -89,17 +89,12 @@ plt.title(f"Dangerous accessible space: {df_tracking_frame['DAS'].iloc[0]:.2f} m
 plt.show()
 
 # Example 4.3: Visualize (dangerous) accessible space of individual players
-individual_result = accessible_space.get_individudal_dangerous_accessible_space(df_tracking, additional_fields_to_return=["player_poss_density"], period_col=None)  # TODO
+individual_result = accessible_space.get_individual_dangerous_accessible_space(df_tracking, period_col=None)
 df_tracking["player_index"] = individual_result.player_index  # Mapping from player to index in simulation_result
 df_tracking["player_AS"] = individual_result.player_acc_space
 df_tracking["player_DAS"] = individual_result.player_das
-# areas = accessible_space.integrate_surfaces(pitch_result.simulation_result)  # Calculate surface integrals
-# dangerous_areas = accessible_space.integrate_surfaces(pitch_result.dangerous_result)
 for _, row in df_tracking[(df_tracking["frame_id"] == 0) & (df_tracking["player_id"] != "ball")].iterrows():  # Consider frame 0
     is_attacker = row["team_id"] == row["team_in_possession"]
-    # acc_space = areas.player_poss[int(frame_index), int(row["player_index"])]
-    # das = dangerous_areas.player_poss[int(frame_index), int(row["player_index"])]
-
     plot_constellation(df_tracking_frame)
     accessible_space.plot_expected_completion_surface(individual_result.simulation_result, frame_index=frame_index, attribute="player_poss_density", player_index=int(row["player_index"]))
     accessible_space.plot_expected_completion_surface(individual_result.dangerous_result, frame_index=frame_index, attribute="player_poss_density", player_index=int(row["player_index"]), color="red")

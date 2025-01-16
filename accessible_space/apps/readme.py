@@ -47,6 +47,12 @@ df_tracking["DAS"] = pitch_result.das""", language="python")
     df_tracking["DAS"] = pitch_result.das  # Dangerous accessible space
     st.write(df_tracking[["frame_id", "team_in_possession", "AS", "DAS"]].drop_duplicates())
 
+    ### Example 4. Add individual DAS to tracking frames
+    individual_result = accessible_space.get_individual_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", team_in_possession_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34)
+    df_tracking["AS_player"] = individual_result.player_acc_space
+    df_tracking["DAS_player"] = individual_result.player_das
+    print(df_tracking[["frame_id", "player_id", "team_id", "team_in_possession", "AS_player", "DAS_player"]].drop_duplicates())
+
     ### 4. Access raw simulation results
     # Example 4.1: Expected interception rate = last value of the cumulative interception probability of the defending team
     st.write("#### Example 4.1: Expected interception rate")
@@ -90,19 +96,17 @@ df_tracking["DAS"] = pitch_result.das""", language="python")
     # Example 4.3: Get (dangerous) accessible space of individual players
     st.write("#### Example 4.3: Get (dangerous) accessible space of individual players")
     df_tracking["player_index"] = pitch_result.player_index  # Mapping from player to index in simulation_result
-    pitch_result = accessible_space.get_dangerous_accessible_space(df_tracking, additional_fields_to_return=["player_poss_density"], period_col="period_id")
-    areas = accessible_space.integrate_surfaces(pitch_result.simulation_result)  # Calculate surface integrals
-    dangerous_areas = accessible_space.integrate_surfaces(pitch_result.dangerous_result)
+    individual_result = accessible_space.get_individual_dangerous_accessible_space(df_tracking, additional_fields_to_return=["player_poss_density"], period_col=None)
+    df_tracking["player_index"] = individual_result.player_index  # Mapping from player to index in simulation_result
+    df_tracking["player_AS"] = individual_result.player_acc_space
+    df_tracking["player_DAS"] = individual_result.player_das
     columns = st.columns(2)
     for row_nr, (_, row) in enumerate(df_tracking[(df_tracking["frame_id"] == 0) & (df_tracking["player_id"] != "ball")].iterrows()):  # Consider frame 0
         is_attacker = row["team_id"] == row["team_in_possession"]
-        acc_space = areas.player_poss[int(frame_index), int(row["player_index"])]
-        das = dangerous_areas.player_poss[int(frame_index), int(row["player_index"])]
-
         plot_constellation(df_tracking_frame)
-        accessible_space.plot_expected_completion_surface(pitch_result.simulation_result, frame_index, "player_poss_density", player_index=int(row["player_index"]))
-        accessible_space.plot_expected_completion_surface(pitch_result.dangerous_result, frame_index, "player_poss_density", player_index=int(row["player_index"]), color="red")
-        plt.title(f"{row['player_id']} ({'attacker' if is_attacker else 'defender'}) {acc_space:.0f}m² AS and {das:.2f} m² DAS.")
+        accessible_space.plot_expected_completion_surface(individual_result.simulation_result, frame_index, "player_poss_density", player_index=int(row["player_index"]))
+        accessible_space.plot_expected_completion_surface(individual_result.dangerous_result, frame_index, "player_poss_density", player_index=int(row["player_index"]), color="red")
+        plt.title(f"{row['player_id']} ({'attacker' if is_attacker else 'defender'}) {row['player_AS']:.0f}m² AS and {row['player_DAS']:.2f} m² DAS.")
         with columns[row_nr % 2]:
             st.write(plt.gcf())
         # Note: Individual space is not exclusive within a team. This is intentional because your team mates do not take away space from you in the competitive way that your opponents do.

@@ -1,18 +1,10 @@
 import pytest
-
-try:
-    import accessible_space
-    import pytest
-    import pandas as pd
-    import numpy as np
-    import sklearn.metrics
-    import matplotlib.pyplot as plt
-    import streamlit as st
-except ImportError as e:
-    pytest.skip(f"Skipping tests because import failed: {e}", allow_module_level=True)
+import accessible_space
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 
 
-@st.cache_resource  # TODO remove
 def _get_metrica_data(
     dataset_nr=1, new_team_col="TEAM", new_player_col="PLAYER", new_x_col="X", new_y_col="Y",
     passer_team_col="passer_team", receiver_team_col="receiver_team",
@@ -181,20 +173,20 @@ def _get_metrica_data(
         # away_data=f"https://raw.githubusercontent.com/metrica-sports/sample-data/master/data/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Away_Team.csv"
         away_data_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawTrackingData_Away_Team.csv"
         event_url = f"{metrica_open_data_base_dir}/Sample_Game_{dataset_nr}/Sample_Game_{dataset_nr}_RawEventsData.csv"
-        with st.spinner(f"Loading data 1/3 from {event_url}"):
-            df_events = pd.read_csv(event_url)
-        with st.spinner(f"Loading data 2/3 from {home_data_url}"):
-            df_home = pd.read_csv(home_data_url, skiprows=2)
-        with st.spinner(f"Loading data 3/3 from {away_data_url}"):
-            df_away = pd.read_csv(away_data_url, skiprows=2)
+        # with st.spinner(f"Loading data 1/3 from {event_url}"):
+        df_events = pd.read_csv(event_url)
+        # with st.spinner(f"Loading data 2/3 from {home_data_url}"):
+        df_home = pd.read_csv(home_data_url, skiprows=2)
+        # with st.spinner(f"Loading data 3/3 from {away_data_url}"):
+        df_away = pd.read_csv(away_data_url, skiprows=2)
         return df_home, df_away, df_events
 
     df_home, df_away, df_events = _get()
     df_events = get_events(dataset_nr)
     df_passes = df_events[df_events["is_pass"]].copy()
 
-    st.write("df_events")
-    st.write(df_events)
+    # st.write("df_events")
+    # st.write(df_events)
 
     df_tracking = []
     for team, df_team in [("Home", df_home), ("Away", df_away)]:
@@ -238,9 +230,9 @@ def _get_metrica_data(
         df_tracking[y_col] = (df_tracking[y_col] - 0.5) * 68 * -1
 
     df_passes["is_successful"] = df_passes[passer_team_col] == df_passes[receiver_team_col]
-    st.write("df_passes")
-    st.write(df_passes)
-    st.write("Success rate", df_passes["is_successful"].mean())
+    # st.write("df_passes")
+    # st.write(df_passes)
+    # st.write("Success rate", df_passes["is_successful"].mean())
     assert df_passes["is_successful"].mean() < 1.0
 
     return df_passes, df_tracking
@@ -263,7 +255,7 @@ def test_real_world_data(dataset_nr):
 
     df_tracking_passes = df_tracking[df_tracking["Frame"].isin(df_passes["frame_id"].unique())]
     df_tracking_passes = df_tracking_passes.merge(df_passes[["frame_id", "passer_team"]], right_on="frame_id", left_on="Frame")
-    ret_das = accessible_space.get_dangerous_accessible_space(
+    ret_das = accessible_space.get_individual_dangerous_accessible_space(
         df_tracking_passes, frame_col="Frame", x_col="X", y_col="Y", ball_player_id="Ball",
         return_cropped_result=True, player_col="PLAYER", team_col="TEAM", team_in_possession_col="passer_team",
         period_col="Period",
@@ -271,14 +263,24 @@ def test_real_world_data(dataset_nr):
     df_tracking_passes["AS"] = ret_das.acc_space
     df_tracking_passes["DAS"] = ret_das.das
     df_tracking_passes["frame_index"] = ret_das.frame_index
+    df_tracking_passes["AS_player"] = ret_das.player_acc_space
+    df_tracking_passes["DAS_player"] = ret_das.player_das
+
+    for team, df_tracking_passes_team in df_tracking_passes.groupby("passer_team"):
+        df_tracking_passes_team = df_tracking_passes_team[df_tracking_passes_team["TEAM"] == team]
+        assert df_tracking_passes_team.groupby("Frame").agg({"DAS": "nunique"})["DAS"].max() == 1
+        assert df_tracking_passes_team.groupby("Frame").agg({"AS": "nunique"})["AS"].max() == 1
+        dfg = df_tracking_passes_team.groupby("Frame").agg({"DAS": "first", "AS": "first", "DAS_player": "sum", "AS_player": "sum"})
+        assert (dfg["DAS"] < dfg["DAS_player"]).all()  # DAS/AS is non-exclusive within each team
+        assert (dfg["AS"] < dfg["AS_player"]).all()
 
     df_passes["DAS_from_das"] = df_passes["frame_id"].map(df_tracking_passes.set_index("frame_id")["DAS"].to_dict())
     df_passes["AS_from_das"] = df_passes["frame_id"].map(df_tracking_passes.set_index("frame_id")["AS"].to_dict())
     df_passes["frame_index"] = df_passes["frame_id"].map(df_tracking_passes.set_index("frame_id")["frame_index"].to_dict())
-    st.write("df_passes")
-    st.write(df_passes)
+    # st.write("df_passes")
+    # st.write(df_passes)
 
-    st.write("Plotting xC")
+    # st.write("Plotting xC")
     for pass_nr, (pass_index, p4ss) in enumerate(df_passes.iloc[:30].iterrows()):
         plt.figure()
         plt.arrow(p4ss["coordinates_x"], p4ss["coordinates_y"], p4ss["end_coordinates_x"]-p4ss["coordinates_x"], p4ss["end_coordinates_y"]-p4ss["coordinates_y"], color="black", head_width=2, head_length=3)
@@ -300,7 +302,7 @@ def test_real_world_data(dataset_nr):
         plt.title(f"Frame: {p4ss['frame_id']}, xC: {p4ss['xc']:1f}, Success: {p4ss['is_successful']}, DAS: {p4ss['DAS_from_das']}, AS: {p4ss['AS_from_das']}")
 
         accessible_space.plot_expected_completion_surface(ret_das.simulation_result, p4ss["frame_index"])
-        st.write(plt.gcf())
+        # st.write(plt.gcf())
         # df_passes.loc[pass_index, "DAS_from_das"] = ret.das.iloc[0]
         # df_passes.loc[pass_index, "AS_from_das"] = ret.acc_space.iloc[0]
 
@@ -312,10 +314,18 @@ def test_real_world_data(dataset_nr):
     # assert average_xc > 0.5
     # assert average_success < 1.0
 
-    logloss = sklearn.metrics.log_loss(df_passes["is_successful"], df_passes["xc"], labels=np.array([0, 1]))
-    st.write("logloss", logloss)
-    brier = sklearn.metrics.brier_score_loss(df_passes["is_successful"], df_passes["xc"])
-    st.write("brier", brier)
+    def calculate_log_loss(y_true, y_pred):
+        epsilon = 1e-15  # Avoid log(0) errors
+        y_pred = np.clip(y_pred, epsilon, 1 - epsilon)  # Clip probabilities to avoid extreme values
+        log_loss = -np.mean(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred))
+        return log_loss
+
+    # logloss = sklearn.metrics.log_loss(df_passes["is_successful"], df_passes["xc"], labels=np.array([0, 1]))
+    logloss = calculate_log_loss(df_passes["is_successful"], df_passes["xc"])
+    # st.write("logloss", logloss)
+    # brier = sklearn.metrics.brier_score_loss(df_passes["is_successful"], df_passes["xc"])
+    brier = np.mean((df_passes["is_successful"] - df_passes["xc"]) ** 2)
+    # st.write("brier", brier)
 
     assert logloss < 0.6
     assert brier < 0.2
@@ -355,8 +365,8 @@ def test_real_world_data(dataset_nr):
     df_passes["DAS_from_gained"] = ret2.das
     df_passes["DAS_reception"] = ret2.das_reception
     df_passes["frame_index"] = ret2.frame_index
-    st.write("df_passes")
-    st.write(df_passes)
+    # st.write("df_passes")
+    # st.write(df_passes)
 
     # sort by das gained
     df_best_passes = df_passes.sort_values("DAS_gained", ascending=False)
@@ -367,7 +377,7 @@ def test_real_world_data(dataset_nr):
         (df_best_passes, "best"),
         (df_worst_passes, "worst"),
     ]:
-        st.write(f"### {string} passes")
+        # st.write(f"### {string} passes")
         for _, p4ss in df.iloc[:30].iterrows():
             plt.figure()
             plt.arrow(p4ss["coordinates_x"], p4ss["coordinates_y"], p4ss["end_coordinates_x"]-p4ss["coordinates_x"], p4ss["end_coordinates_y"]-p4ss["coordinates_y"], color="black", head_width=2, head_length=3)
@@ -382,12 +392,13 @@ def test_real_world_data(dataset_nr):
 
             accessible_space.plot_expected_completion_surface(ret2.simulation_result, p4ss["frame_index"])
 
-            st.write(plt.gcf())
+            # st.write(plt.gcf())
+            plt.close()
 
     df_passes["diff1"] = df_passes["DAS_from_das"] - df_passes["DAS_from_gained"]
     df_passes["diff2"] = df_passes["AS_from_das"] - df_passes["AS_from_gained"]
 
-    st.write(df_passes[['DAS_from_das', 'DAS_from_gained', 'AS_from_das', 'AS_from_gained', "diff1", "diff2"]])
+    # st.write(df_passes[['DAS_from_das', 'DAS_from_gained', 'AS_from_das', 'AS_from_gained', "diff1", "diff2"]])
 
     # check all close
     assert np.mean(np.isclose(df_passes["DAS_from_das"], df_passes["DAS_from_gained"])) >= 0.9  # DAS and DAS Gained sometimes don't match when team in possession is not clear for a frame.

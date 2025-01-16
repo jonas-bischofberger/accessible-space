@@ -67,7 +67,7 @@ build-backend = "setuptools.build_meta"
 
 
 [tool.pytest.ini_options]
-addopts = "--doctest-modules --cov=accessible_space --doctest-continue-on-failure"
+addopts = "--doctest-modules --cov=accessible_space --doctest-continue-on-failure -rsx"
 filterwarnings = """
     ignore:Inferring attacking direction:UserWarning
     ignore:Range of tracking Y coordinates:UserWarning

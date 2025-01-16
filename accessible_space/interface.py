@@ -1,5 +1,6 @@
 import collections
 import warnings
+import inspect
 
 import matplotlib.colors
 import matplotlib.pyplot as plt
@@ -161,7 +162,10 @@ def _get_matrix_coordinates(
     C = 4  # number of coordinates per player
     P = df_tracking.loc[i_player, player_col].nunique()  # number of players
 
-    dfp = df_players.stack(level=1, future_stack=True)
+    if "future_stack" in inspect.signature(df_players.stack).parameters:
+        dfp = df_players.stack(level=1, future_stack=True)
+    else:
+        dfp = df_players.stack(level=1)
     index = pd.MultiIndex.from_product(
         [df_players.index, df_players.columns.get_level_values(1).unique()],
         names=[frame_col, player_col]
@@ -956,10 +960,10 @@ def get_individual_dangerous_accessible_space(
     i_notna = ret.frame_index.notna() & ret.player_index.notna()
     df = pd.DataFrame(data=np.array([ret.frame_index, ret.player_index]).transpose(), columns=["frame_index", "player_index"])
 
-    player_acc_space = pd.Series(index=df_tracking.index)
+    player_acc_space = pd.Series(index=df_tracking.index, dtype=np.float64)
     player_acc_space[i_notna] = df.loc[i_notna].apply(lambda x: areas[int(x["frame_index"]), int(x["player_index"])], axis=1)
 
-    player_das = pd.Series(index=df_tracking.index)
+    player_das = pd.Series(index=df_tracking.index, dtype=np.float64)
     player_das[i_notna] = df.loc[i_notna].apply(lambda x: foo(x), axis=1)
 
     return ReturnValueIndividualDAS(ret.acc_space, ret.das, player_acc_space, player_das, ret.frame_index, ret.player_index, ret.simulation_result, ret.dangerous_result)

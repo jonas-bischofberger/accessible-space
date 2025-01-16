@@ -25,6 +25,8 @@ from accessible_space.utility import get_unused_column_name, progress_bar
 from accessible_space.interface import per_object_frameify_tracking_data, get_expected_pass_completion
 from accessible_space.core import PARAMETER_BOUNDS
 
+os.system("pip install brokenaxes")
+
 cache_dir = os.path.join(os.path.dirname(__file__), ".joblib-cache")
 memory = joblib.Memory(verbose=0)
 
@@ -525,7 +527,6 @@ def get_scores(_df, baseline_accuracy, outcome_col="success", add_confidence_int
         # Model scores
         data["brier_score"] = (df[outcome_col] - df["xc"]).pow(2).mean()
 
-        # TODO
         if add_confidence_intervals:
             logloss_from_ci, logloss_ci_lower, logloss_ci_upper = bootstrap_logloss_ci(df[outcome_col].values, df["xc"].values)
             data["logloss_ci_lower"] = logloss_ci_lower
@@ -603,6 +604,7 @@ def get_scores(_df, baseline_accuracy, outcome_col="success", add_confidence_int
 
 
 def calibration_histogram(df, hist_col="xc", n_bins=None, binsize=None, add_text=True, use_boken_axis=True):
+    plt.style.use("seaborn-v0_8")
     plt.figure()
 
     if use_boken_axis:
@@ -675,7 +677,7 @@ def calibration_histogram(df, hist_col="xc", n_bins=None, binsize=None, add_text
 
     return plt.gcf()
 
-def bin_nr_calibration_plot(df, prediction_col="xc", outcome_col="success", n_bins=None, binsize=None, add_text=True):
+def bin_nr_calibration_plot(df, prediction_col="xc", outcome_col="success", n_bins=None, binsize=None, add_text=True, style="seaborn-v0_8"):
     bin_col = get_unused_column_name(df.columns, "bin")
     if binsize is None and n_bins is not None:
         df[bin_col] = pd.qcut(df[prediction_col], n_bins, labels=False, duplicates="drop")
@@ -689,7 +691,9 @@ def bin_nr_calibration_plot(df, prediction_col="xc", outcome_col="success", n_bi
 
     df_calibration = df.groupby(bin_col).agg({outcome_col: "mean", prediction_col: "mean"}).reset_index()
     df_calibration[bin_col] = df_calibration[bin_col]
+    plt.style.use(style)
     fig, ax = plt.subplots()
+
     ax.plot(df_calibration[prediction_col], df_calibration[outcome_col], marker="o")
     ax.plot([0, 1], [0, 1], linestyle="--", color="black")
 
@@ -711,6 +715,7 @@ def bin_nr_calibration_plot(df, prediction_col="xc", outcome_col="success", n_bi
 
 
 def plot_pass(p4ss, df_tracking):
+    plt.style.use("seaborn-v0_8-white")  # ?
     plt.figure()
     plt.arrow(x=p4ss["coordinates_x"], y=p4ss["coordinates_y"], dx=p4ss["end_coordinates_x"] - p4ss["coordinates_x"],
               dy=p4ss["end_coordinates_y"] - p4ss["coordinates_y"], head_width=1, head_length=1, fc="red", ec="red")
@@ -741,6 +746,7 @@ def plot_pass(p4ss, df_tracking):
     plt.plot([52.5, 52.5], [-34, 34], c="black")
     plt.title(f"Pass: {p4ss['success']}")
     st.write(plt.gcf())
+    plt.close()
 
 
 def _choose_random_parameters(parameter_to_bounds):
@@ -1110,13 +1116,15 @@ def validate_multiple_matches(
     def frag1():
         n_bins = st.number_input("Number of bins for calibration plot", value=10, min_value=1, max_value=None)
         add_text = st.checkbox("Add text to calibration plot", value=True, key="add_text1")
-        st.write(bin_nr_calibration_plot(df_best_passes, outcome_col=outcome_col, n_bins=n_bins, add_text=add_text))
+        style = st.selectbox("Style", plt.style.available, index=plt.style.available.index("seaborn-v0_8"))
+        st.write(bin_nr_calibration_plot(df_best_passes, outcome_col=outcome_col, n_bins=n_bins, add_text=add_text, style=style))
 
     @st.fragment
     def frag2():
         binsize = st.number_input("Binsize for calibration plot", value=0.1, min_value=0.01, max_value=None)
         add_text = st.checkbox("Add text to calibration plot", value=True, key="add_text2")
-        st.write(bin_nr_calibration_plot(df_best_passes, outcome_col=outcome_col, binsize=binsize, add_text=add_text))
+        style = st.selectbox("Style", plt.style.available, index=plt.style.available.index("seaborn-v0_8"))
+        st.write(bin_nr_calibration_plot(df_best_passes, outcome_col=outcome_col, binsize=binsize, add_text=add_text, style=style))
 
     @st.fragment
     def frag3():

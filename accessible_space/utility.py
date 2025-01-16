@@ -33,16 +33,16 @@ def progress_bar(iterable, update_interval=1, **kwargs):
 
     console_progress_bar = tqdm.tqdm(iterable, total=total, **kwargs)#CustomTqdm(**kwargs)
 
+    streamlit_progress_bar = None
     try:
         import streamlit.runtime
-        # assert not streamlit.runtime.exists()
         if streamlit.runtime.exists():
             import streamlit as st
             st.empty()
             streamlit_progress_bar = st.progress(0)
             streamlit_progress_bar.progress(0, text=_get_progress_text_without_progress_bar(console_progress_bar))
     except ImportError:
-        streamlit_progress_bar = None
+        pass
 
     for i, item in enumerate(console_progress_bar):
         yield item
