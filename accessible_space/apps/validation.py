@@ -178,7 +178,7 @@ def eval_benchmark():
             plt.ylim(-34, 34)
             # accessible_space.plot_expected_completion_surface(ret.simulation_result, 0, color="blue")
             accessible_space.plot_expected_completion_surface(ret.dangerous_result, 0, color="red")
-            cols[index-1].write(f"{index}, {df['playing_direction_event'].iloc[0]}, {higher_state=}, {das=}, {acc_space=}")
+            cols[index-1].write(f"{index}, {df['playing_direction_event'].iloc[0]}, higher_state={higher_state}, das={das}, acc_space={acc_space}")
             cols[index-1].write(plt.gcf())
             cols[index-1].write(f"DAS: {das}m^2, DAS: {acc_space}m^2")
 
@@ -196,7 +196,7 @@ def eval_benchmark():
         else:
             datapoint["differs_only_by_z"] = False
 
-        st.write(f"{higher_state=}")
+        st.write(f"higher_state={higher_state}")
         st.write("-----")
 
         # st.stop()
@@ -1288,7 +1288,7 @@ def validate_multiple_matches(
         if plot_all_passes :
             for add_legend in [False, True]:
                 for pass_nr, (_, p4ss) in enumerate(dfs_passes[dataset_nr].iloc[183+24:].iterrows()):
-                    st.write(f"{pass_nr=}")
+                    st.write(f"pass_nr={pass_nr}")
                     try:
                         plot_pass(p4ss, dfs_tracking[dataset_nr], add_legend=add_legend,
                                   legend_loc="lower left", add_as=True, add_das=False, flip=False,
@@ -1805,8 +1805,8 @@ def validation_dashboard(dummy=False, run_asserts=True):
     if do_das:
         df_passes, target_density_success, target_density_fail = validate_das(dfs_tracking, dfs_passes)
         if run_asserts:
-            assert round(target_density_fail, 3) == 0.346
-            assert round(target_density_success, 3) == 0.843
+            assert round(target_density_fail, 3) == 0.346, f"got {target_density_fail}"
+            assert round(target_density_success, 3) == 0.843; f"got {target_density_success}"
             st.markdown('<div id="done-flag">DONE 1</div>', unsafe_allow_html=True)
 
     np.random.seed(SEED)

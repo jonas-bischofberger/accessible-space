@@ -40,7 +40,6 @@ full = [
     "databallpy",
     "numpy<2.3.0",  # necessary for databallpy
 ]
-
 dev = [
     "scikit-learn",
     "kloppy>=3.15.0",
@@ -55,6 +54,23 @@ dev = [
     "pytest",
     "pytest-cov",
 #    "nbval",
+    "build",
+    "twine",
+    "setuptools",
+    "tox",
+    "requests",
+    "packaging",
+]
+dev37 = [
+    "scikit-learn",
+    "kloppy>=3.15.0",
+    "xmltodict",
+    "streamlit",
+    "wfork-streamlit-profiler",
+    "brokenaxes",
+    "mplsoccer",
+    "pytest",
+    "pytest-cov",
     "build",
     "twine",
     "setuptools",
