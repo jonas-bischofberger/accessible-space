@@ -36,7 +36,6 @@ full = [
     "streamlit",
     "wfork-streamlit-profiler",
     "brokenaxes",
-    "netcal",
     "mplsoccer",
     "databallpy",
 ]
@@ -48,7 +47,6 @@ dev = [
     "streamlit",
     "wfork-streamlit-profiler",
     "brokenaxes",
-    "netcal",
     "mplsoccer",
     "databallpy",
 

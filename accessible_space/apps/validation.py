@@ -18,7 +18,6 @@ import gc
 import random
 import math
 import subprocess
-import netcal.metrics.confidence
 import concurrent.futures
 
 import matplotlib.patches
@@ -268,8 +267,36 @@ def bootstrap_brier_ci(y_true, y_pred, n_iterations, conf_level=0.95):
 
 
 def ece(y_true, y_pred, bins=10):
-    ece = netcal.metrics.confidence.ECE(bins=int(bins))
-    return ece.measure(y_pred, y_true)
+    y_pred = np.array(y_pred)
+    y_true = np.array(y_true)
+
+    if y_pred.ndim == 2 and y_pred.shape[1] > 1:
+        confidences = np.max(y_pred, axis=1)
+        accuracies = (np.argmax(y_pred, axis=1) == y_true).astype(float)
+    else:
+        confidences = y_pred
+        accuracies = y_true
+
+    bins = int(bins)
+    bin_boundaries = np.linspace(0, 1, bins + 1)
+    ece = 0.0
+
+    for i in range(bins):
+        bin_lower = bin_boundaries[i]
+        bin_upper = bin_boundaries[i + 1]
+        if i == bins - 1:
+            in_bin = (confidences >= bin_lower) & (confidences <= bin_upper)
+        else:
+            in_bin = (confidences >= bin_lower) & (confidences < bin_upper)
+
+        if np.any(in_bin):
+            bin_accuracy = np.mean(accuracies[in_bin])
+            bin_confidence = np.mean(confidences[in_bin])
+            bin_weight = np.sum(in_bin) / len(confidences)
+
+            ece += np.abs(bin_accuracy - bin_confidence) * bin_weight
+
+    return ece
 
 
 def ece_ci(y_true, y_pred, n_iterations, conf_level=0.95):

@@ -17,7 +17,6 @@ build
 twine
 setuptools
 tox
-netcal
 mplsoccer
 databallpy
 requests
