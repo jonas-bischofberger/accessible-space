@@ -232,6 +232,7 @@ def _get_metrica_data(
     return df_passes, df_tracking
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("dataset_nr", [1, 2])
 def test_real_world_data(dataset_nr):
     df_passes, df_tracking = _get_metrica_data(dataset_nr)

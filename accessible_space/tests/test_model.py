@@ -819,6 +819,7 @@ def test_fields_to_return_are_present(_get_data):
         assert getattr(ret.simulation_result, field) is not None
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("_get_data", [_get_butterfly_data, _get_butterfly_data_with_nans])
 def test_fields_to_return_others_are_not_present(_get_data):
     _, _, df_tracking = _get_data()
