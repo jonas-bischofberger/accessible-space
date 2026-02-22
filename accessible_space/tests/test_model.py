@@ -986,3 +986,23 @@ def test_additional_defender_decreases_as_and_additional_attacker_increases_as(_
                     as_with_extra_attacker, das_with_extra_attacker, _ = get_as_and_das(df_tracking_extra_attacker)
                     assert as_with_extra_attacker >= baseline_as, f"new_x={new_x}, new_y={new_y}, new_vx={new_vx} new_vy={new_vy}"
                     assert das_with_extra_attacker >= baseline_das
+
+
+@pytest.mark.slow
+def test_databallpy():
+    import databallpy
+    game = databallpy.get_open_match(provider="metrica")
+    game.tracking_data.add_velocity(game.get_column_ids() + ["ball"], filter_type="savitzky_golay")
+    game.tracking_data.add_individual_player_possession()
+    game.synchronise_tracking_and_event_data()
+    game.tracking_data.add_team_possession(game.event_data, game.home_team_id)
+
+    mask = (~pd.isnull(game.tracking_data["player_possession"])) & (game.tracking_data.index <= 1300)
+    game.tracking_data.add_dangerous_accessible_space(mask)
+
+    # Example taken from the docs: https://databallpy.readthedocs.io/en/latest/features/dangerous_accessible_space.html
+    assert np.isclose(game.tracking_data["dangerous_accessible_space"].dropna().iloc[0], 0.137242, atol=1e-4)
+    assert np.isclose(game.tracking_data["dangerous_accessible_space"].dropna().iloc[1], 0.135923, atol=1e-4)
+    assert np.isclose(game.tracking_data["dangerous_accessible_space"].dropna().iloc[2], 0.135279, atol=1e-4)
+    assert np.isclose(game.tracking_data["dangerous_accessible_space"].dropna().iloc[3], 0.135522, atol=1e-4)
+    assert np.isclose(game.tracking_data["dangerous_accessible_space"].dropna().iloc[4], 0.135579, atol=1e-4)

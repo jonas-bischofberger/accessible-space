@@ -38,6 +38,7 @@ full = [
     "brokenaxes",
     "mplsoccer",
     "databallpy",
+    "numpy<2.3.0",  # necessary for databallpy
 ]
 
 dev = [
@@ -49,6 +50,7 @@ dev = [
     "brokenaxes",
     "mplsoccer",
     "databallpy",
+    "numpy<2.3.0",  # necessary for databallpy
 
     "pytest",
     "pytest-cov",
