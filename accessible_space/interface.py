@@ -503,7 +503,7 @@ def get_das_gained(
     fr2as = df_tracking_passes_and_receptions[[unique_frame_col, "AS"]].set_index(unique_frame_col)["AS"].to_dict()
     fr2index = df_tracking_passes_and_receptions[[unique_frame_col, "frame_index"]].set_index(unique_frame_col)["frame_index"].to_dict()
 
-    das = df_passes[unique_frame_col].apply(lambda fr: fr2das[fr])
+    das = df_passes[unique_frame_col].map(fr2das)
     acc_space = df_passes[unique_frame_col].map(fr2as)
     frame_index = df_passes[unique_frame_col].map(fr2index)
     target_frame_index = df_passes[unique_frame_reception_col].map(fr2index)
@@ -590,7 +590,7 @@ def get_expected_pass_completion(
     factor2=_DEFAULT_FACTOR2,
 ) -> ReturnValueXC:
     """
-    Calculate Expected Pass Completion (xC) for the given passes, using the given tracking data.    
+    Calculate Expected Pass Completion (xC) for the given passes, using the given tracking data.
 
     >>> pd.set_option("display.max_columns", None)
     >>> pd.set_option("display.expand_frame_repr", False)
@@ -876,7 +876,7 @@ def get_dangerous_accessible_space(
     n_v0 = round(n_v0)
     missing_columns = [(parameter_name, col) for parameter_name, col in [("frame_col", frame_col), ("player_col", player_col), ("team_col", team_col), ("x_col", x_col), ("y_col", y_col), ("vx_col", vx_col), ("vy_col", vy_col), ("team_in_possession_col", team_in_possession_col)] if col not in df_tracking.columns]
     if len(missing_columns) > 0:
-        raise KeyError(f"""Missing column{'s' if len(missing_columns) > 1 else ''} in tracking data: {', '.join(['='.join([parameter_name, "'" + missing_columns + "'"]) for (parameter_name, missing_columns) in missing_columns])}""")
+        raise KeyError(f"""Missing column{'s' if len(missing_columns) > 1 else ''} in tracking data: {', '.join(['='.join([str(parameter_name), "'" + str(missing_columns) + "'"]) for (parameter_name, missing_columns) in missing_columns])}""")
     if period_col is _unset:
         if infer_attacking_direction:
             raise ValueError("Inferring attacking direction but 'period_col' is unset. If you have data across multiple halfs, specify 'period_col', otherwise pass 'period_col'=None.")
