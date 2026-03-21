@@ -2,25 +2,11 @@
 
 This readme only describes the usage of _defensive_ subfolder. To see the whole readme for **Dangerous Accessible Space (DAS)** look at the original repository: [Accessible Space](https://github.com/jonas-bischofberger/accessible-space)
 
-This is a provider-agnostic implementation of the **Dangerous Accessible Space (DAS)** model for advanced football (soccer) analytics.
-Based on physical pass simulations, DAS quantifies threatening areas that a team can access by a pass.
-You can use DAS to analyze profound aspects of performance like:
 
-- Strategic passing behaviour
-- Timing and danger of attacking movement
-- Defensive positioning to close down passing options
-- Team defensive organization
+### Run Test Skript 
 
-To learn how to access DAS and related metrics, see the examples below.
+The test Skript can be found under `accessible_space/scripts/run_pdd.py`.
 
-If you are interested in understanding the model, there is [a demo notebook explaining its basic workings](https://github.com/jonas-bischofberger/accessible-space/blob/main/accessible_space/apps/demo.ipynb).
-This notebook can also be accessed without installation through [Google Colab](https://colab.research.google.com/github/jonas-bischofberger/accessible-space/blob/main/accessible_space/apps/demo.ipynb) or [Binder](https://mybinder.org/v2/gh/jonas-bischofberger/accessible-space/HEAD?urlpath=%2Fdoc%2Ftree%2Faccessible_space%2Fapps%2Fdemo.ipynb).
-
-### Installation 
-
-```bash
-pip install accessible-space
-```
 
 ### Usage
 
