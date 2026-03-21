@@ -5,7 +5,13 @@ This readme only describes the usage of _defensive_ subfolder. To see the whole 
 
 ### Run Test Skript 
 
-The test Skript can be found under `accessible_space/scripts/run_pdd.py`.
+The test Skript can be found under `accessible_space/scripts/run_pdd.py`. The following arguments can be passed at the moment:
+```
+--format [wide, long] default=long
+--player_id default=home_24
+--output default=output
+--frame_filter_rate default=1000
+```
 
 
 ### Usage
