@@ -6,6 +6,8 @@
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jonas-bischofberger/accessible-space/blob/HEAD/accessible_space/apps/demo.ipynb)
 [![License](https://img.shields.io/github/license/jonas-bischofberger/accessible-space)](https://github.com/jonas-bischofberger/accessible-space/blob/HEAD/LICENSE)
 
+**Research paper:** Bischofberger, J., Baca, A. Dangerous accessible space: a unified model of space and value in team sports. J Big Data 13, 76 (2026). https://doi.org/10.1186/s40537-026-01387-8
+
 This is a provider-agnostic implementation of the **Dangerous Accessible Space (DAS)** model for advanced football (soccer) analytics.
 Based on physical pass simulations, DAS quantifies threatening areas that a team can access by a pass.
 You can use DAS to analyze profound aspects of performance like:
