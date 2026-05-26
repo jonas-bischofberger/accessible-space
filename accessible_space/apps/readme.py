@@ -52,8 +52,8 @@ def readme_dashboard():
 
     ### 2. Add DAS Gained to passes
     st.write("#### 2. Add DAS Gained to passes")
-    st.code("""das_gained_result = accessible_space.get_das_gained(df_passes, df_tracking, event_frame_col="frame_id", event_success_col="pass_outcome", event_target_frame_col="target_frame_id", tracking_frame_col="frame_id", tracking_period_col="period_id", tracking_player_col="player_id", tracking_team_col="team_id", tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", tracking_team_in_possession_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34, chunk_size=chunk_size)""", language="python")
-    das_gained_result = accessible_space.get_das_gained(df_passes, df_tracking, event_frame_col="frame_id", event_success_col="pass_outcome", event_target_frame_col="target_frame_id", tracking_frame_col="frame_id", tracking_period_col="period_id", tracking_player_col="player_id", tracking_team_col="team_id", tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", tracking_team_in_possession_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34, chunk_size=chunk_size)
+    st.code("""das_gained_result = accessible_space.get_das_gained(df_passes, df_tracking, event_frame_col="frame_id", event_success_col="pass_outcome", event_target_frame_col="target_frame_id", tracking_frame_col="frame_id", tracking_period_col="period_id", tracking_player_col="player_id", tracking_team_col="team_id", tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", tracking_team_in_possession_col="team_in_possession", tracking_player_in_possession_col="player_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34, chunk_size=chunk_size)""", language="python")
+    das_gained_result = accessible_space.get_das_gained(df_passes, df_tracking, event_frame_col="frame_id", event_success_col="pass_outcome", event_target_frame_col="target_frame_id", tracking_frame_col="frame_id", tracking_period_col="period_id", tracking_player_col="player_id", tracking_team_col="team_id", tracking_x_col="x", tracking_y_col="y", tracking_vx_col="vx", tracking_vy_col="vy", tracking_team_in_possession_col="team_in_possession", tracking_player_in_possession_col="player_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34, chunk_size=chunk_size)
     st.code("""df_passes["DAS_Gained"] = das_gained_result.das_gained
 df_passes["AS_Gained"] = das_gained_result.as_gained""")
     df_passes["DAS_Gained"] = das_gained_result.das_gained
@@ -62,8 +62,8 @@ df_passes["AS_Gained"] = das_gained_result.as_gained""")
 
     ### 3. Add Dangerous Accessible Space to tracking frames
     st.write("#### 3. Add Dangerous Accessible Space to tracking frames")
-    st.code("""pitch_result = accessible_space.get_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", team_in_possession_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34, chunk_size=chunk_size)""", language="python")
-    pitch_result = accessible_space.get_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", team_in_possession_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34, chunk_size=chunk_size)
+    st.code("""pitch_result = accessible_space.get_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", team_in_possession_col="team_in_possession", player_in_possession_col="player_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34, chunk_size=chunk_size)""", language="python")
+    pitch_result = accessible_space.get_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", team_in_possession_col="team_in_possession", player_in_possession_col="player_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34, chunk_size=chunk_size)
     st.code("""df_tracking["AS"] = pitch_result.acc_space
 df_tracking["DAS"] = pitch_result.das""", language="python")
     df_tracking["AS"] = pitch_result.acc_space  # Accessible space
@@ -71,8 +71,8 @@ df_tracking["DAS"] = pitch_result.das""", language="python")
     st.write(df_tracking[["frame_id", "team_in_possession", "AS", "DAS"]].drop_duplicates())
 
     ### Example 4. Add individual DAS to tracking frames
-    individual_result = accessible_space.get_individual_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", team_in_possession_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34, chunk_size=chunk_size)
-    st.code("""individual_result = accessible_space.get_individual_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", team_in_possession_col="team_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34, chunk_size=chunk_size)""", language="python")
+    individual_result = accessible_space.get_individual_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", team_in_possession_col="team_in_possession", player_in_possession_col="player_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34, chunk_size=chunk_size)
+    st.code("""individual_result = accessible_space.get_individual_dangerous_accessible_space(df_tracking, frame_col="frame_id", period_col="period_id", player_col="player_id", team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy", team_in_possession_col="team_in_possession", player_in_possession_col="player_in_possession", x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34, chunk_size=chunk_size)""", language="python")
     df_tracking["AS_player"] = individual_result.player_acc_space
     df_tracking["DAS_player"] = individual_result.player_das
     print(df_tracking[["frame_id", "player_id", "team_id", "team_in_possession", "AS_player", "DAS_player"]].drop_duplicates())
@@ -121,7 +121,7 @@ df_tracking["DAS"] = pitch_result.das""", language="python")
     # Example 4.3: Get (dangerous) accessible space of individual players
     st.write("#### Example 4.3: Get (dangerous) accessible space of individual players")
     df_tracking["player_index"] = pitch_result.player_index  # Mapping from player to index in simulation_result
-    individual_result = accessible_space.get_individual_dangerous_accessible_space(df_tracking, additional_fields_to_return=["player_poss_density"], period_col=None, chunk_size=chunk_size)
+    individual_result = accessible_space.get_individual_dangerous_accessible_space(df_tracking, additional_fields_to_return=["player_poss_density"], period_col=None, player_in_possession_col="player_in_possession", chunk_size=chunk_size)
     df_tracking["player_index"] = individual_result.player_index  # Mapping from player to index in simulation_result
     df_tracking["player_AS"] = individual_result.player_acc_space
     df_tracking["player_DAS"] = individual_result.player_das

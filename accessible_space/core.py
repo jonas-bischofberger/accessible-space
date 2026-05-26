@@ -1,9 +1,8 @@
 import collections
-import gc
 import warnings
 
+import numexpr as ne
 import numpy as np
-import scipy.integrate
 
 from .motion_models import constant_velocity_time_to_arrive_1d, approx_two_point_time_to_arrive, constant_velocity_time_to_arrive
 from .utility import progress_bar
@@ -112,6 +111,7 @@ def simulate_passes(
     respect_offside=False,
     fields_to_return=ALL_OPTIONAL_FIELDS_TO_RETURN,
     x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34,
+    use_float32=True,
 
     # Model parameters
     pass_start_location_offset=_DEFAULT_PASS_START_LOCATION_OFFSET,
@@ -139,29 +139,38 @@ def simulate_passes(
     # Simulate a pass from player A straight to the right towards a defender B who is 50m away.
     >>> res = simulate_passes(np.array([[[0, 0, 0, 0], [50, 0, 0, 0]]]), np.array([[0, 0]]), np.array([[0]]), np.array([[10]]), np.array([0]), np.array([0, 1]), players=np.array(["A", "B"]), passers=np.array(["A"]), radial_gridsize=15)
     >>> res.defense_poss_density.shape, res.defense_poss_density
-    ((1, 1, 13), array([[[8.89786731e-05, 1.64897230e-04, 1.29669104e-03, 1.94280126e-01,
-             1.91894891e-01, 1.88063562e-01, 1.77544360e-01, 3.89546322e-02,
-             2.01864630e-03, 1.02515215e-04, 5.17596953e-06, 2.60590596e-07,
-             1.30974323e-08]]]))
+    ((1, 1, 13), array([[[8.8979352e-05, 1.6489999e-04, 1.2966900e-03, 1.9428012e-01,
+             1.9189487e-01, 1.8806356e-01, 1.7754434e-01, 3.8954627e-02,
+             2.0186468e-03, 1.0251525e-04, 5.1759721e-06, 2.6059030e-07,
+             1.3097404e-08]]], dtype=float32))
     >>> res.attack_cum_prob.shape, res.attack_cum_prob  # F x PHI x T
-    ((1, 1, 13), array([[[0.        , 0.01097577, 0.01807728, 0.02306136, 0.02424135,
-             0.02432508, 0.02433268, 0.02433416, 0.02433455, 0.02433456,
-             0.02433456, 0.02433456, 0.02433456]]]))
+    ((1, 1, 13), array([[[0.        , 0.01097577, 0.01807726, 0.02306134, 0.02424132,
+             0.02432506, 0.02433266, 0.02433414, 0.02433453, 0.02433454,
+             0.02433454, 0.02433454, 0.02433454]]], dtype=float32))
     >>> res.phi_grid.shape, res.phi_grid
-    ((1, 1), array([[0]]))
+    ((1, 1), array([[0.]], dtype=float32))
     >>> res.r_grid.shape, res.r_grid
-    ((13,), array([ -1.52453403,  13.47546597,  28.47546597,  43.47546597,
-            58.47546597,  73.47546597,  88.47546597, 103.47546597,
-           118.47546597, 133.47546597, 148.47546597, 163.47546597,
-           178.47546597]))
+    ((13,), array([ -1.524534,  13.475466,  28.475466,  43.475468,  58.475468,
+            73.475464,  88.475464, 103.475464, 118.475464, 133.47546 ,
+           148.47546 , 163.47546 , 178.47546 ], dtype=float32))
     >>> res.x_grid.shape, res.x_grid
-    ((1, 1, 13), array([[[ -1.52453403,  13.47546597,  28.47546597,  43.47546597,
-              58.47546597,  73.47546597,  88.47546597, 103.47546597,
-             118.47546597, 133.47546597, 148.47546597, 163.47546597,
-             178.47546597]]]))
+    ((1, 1, 13), array([[[ -1.524534,  13.475466,  28.475466,  43.475468,  58.475468,
+              73.475464,  88.475464, 103.475464, 118.475464, 133.47546 ,
+             148.47546 , 163.47546 , 178.47546 ]]], dtype=float32))
     >>> res.y_grid.shape, res.y_grid
-    ((1, 1, 13), array([[[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]]]))
+    ((1, 1, 13), array([[[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]]],
+          dtype=float32))
     """
+    if use_float32:
+        PLAYER_POS = PLAYER_POS.astype(np.float32, copy=False)
+        BALL_POS = BALL_POS.astype(np.float32, copy=False)
+        phi_grid = phi_grid.astype(np.float32, copy=False)
+        v0_grid = v0_grid.astype(np.float32, copy=False)
+        b0 = np.float32(b0)
+        b1 = np.float32(b1)
+        factor = np.float32(factor)
+        factor2 = np.float32(factor2)
+
     if not set(fields_to_return) <= set(ALL_OPTIONAL_FIELDS_TO_RETURN):
         invalid_fields = set(fields_to_return) - set(ALL_OPTIONAL_FIELDS_TO_RETURN)
         raise ValueError(f"fields_to_return contains unknown fields: {invalid_fields}. Available: {ALL_OPTIONAL_FIELDS_TO_RETURN}")
@@ -197,7 +206,7 @@ def simulate_passes(
     ### 1. Calculate ball trajectory
     # 1.1 Calculate spatial grid
     max_pass_length = np.sqrt((x_pitch_max - x_pitch_min) ** 2 + (y_pitch_max - y_pitch_min) ** 2) + radial_gridsize * 3  # T
-    D_BALL_SIM = np.arange(pass_start_location_offset, max_pass_length + pass_start_location_offset + radial_gridsize, radial_gridsize)  # T
+    D_BALL_SIM = np.arange(pass_start_location_offset, max_pass_length + pass_start_location_offset + radial_gridsize, radial_gridsize, dtype=np.float32 if use_float32 else None)
 
     # 1.2 Calculate temporal grid
     T_BALL_SIM = constant_velocity_time_to_arrive_1d(
@@ -238,32 +247,46 @@ def simulate_passes(
         i_frames = np.arange(TTA_PLAYERS.shape[0])
         TTA_PLAYERS[i_frames, i_passers_to_exclude, :, :] = np.inf  # F x P x PHI x T
 
-    TTA_PLAYERS = np.nan_to_num(TTA_PLAYERS, nan=np.inf)  # Handle players not participating in the game by setting their TTA to infinity
-    gc.collect()
+    TTA_PLAYERS[np.isnan(TTA_PLAYERS)] = np.inf  # Handle players not participating in the game by setting their TTA to infinity
 
     # 2.2 Transform time to arrive into interception rates
-    TMP = TTA_PLAYERS[:, :, np.newaxis, :, :] - T_BALL_SIM[:, np.newaxis, :, np.newaxis, :]  # F x P x PHI x T - F x PHI x T = F x P x V0 x PHI x T
-    with np.errstate(over='ignore'):  # overflow leads to inf which will be handled gracefully later
-        TMP[:] = b0 + b1 * TMP  # 1 + 1 * F x P x V0 x PHI x T = F x P x V0 x PHI x T
-    with np.errstate(invalid='ignore'):  # inf -> nan
-        TMP[:] = _approximate_sigmoid(TMP) if use_efficient_sigmoid else _sigmoid(TMP)
-    TMP = np.nan_to_num(TMP, nan=0)  # F x P x V0 x PHI x T, gracefully handle overflow
+    if use_efficient_sigmoid:
+        t_player_exp = TTA_PLAYERS[:, :, np.newaxis, :, :]
+        t_ball_exp = T_BALL_SIM[:, np.newaxis, :, np.newaxis, :]
+        half_expr = np.float32(0.5) if use_float32 else 0.5
+        TMP = ne.evaluate("half_expr * ((b0 + b1 * (t_player_exp - t_ball_exp)) / (1 + abs(b0 + b1 * (t_player_exp - t_ball_exp))) + 1)")
+    else:
+        TMP = TTA_PLAYERS[:, :, np.newaxis, :, :] - T_BALL_SIM[:, np.newaxis, :, np.newaxis, :]  # F x P x PHI x T - F x PHI x T = F x P x V0 x PHI x T
+        with np.errstate(over='ignore'):  # overflow leads to inf which will be handled gracefully later
+            TMP[:] = b0 + b1 * TMP  # 1 + 1 * F x P x V0 x PHI x T = F x P x V0 x PHI x T
+        with np.errstate(invalid='ignore'):  # inf -> nan
+            TMP[:] = _approximate_sigmoid(TMP) if use_efficient_sigmoid else _sigmoid(TMP)
+
+    TMP[np.isnan(TMP)] = 0  # F x P x V0 x PHI x T, gracefully handle overflow
     DT = T_BALL_SIM[:, :, 1] - T_BALL_SIM[:, :, 0]  # F x V0
-    ar_time = TMP / (factor * (v0_grid ** (-factor2))[:, np.newaxis, :, np.newaxis, np.newaxis])  # F x P x V0 x PHI x T
+    TMP /= (factor * (v0_grid ** (-factor2))[:, np.newaxis, :, np.newaxis, np.newaxis])  # F x P x V0 x PHI x T
+    ar_time = TMP
     del TMP
-    gc.collect()
 
     ## 3. Use interception rates to calculate probabilities
     # 3.1 Sums of interception rates over players
-    sum_ar = np.nansum(ar_time, axis=1) if _should_return_any_of(["attack_prob_density", "defense_prob_density", "player_prob_density", "attack_cum_prob", "defense_cum_prob", "player_cum_prob", "p0_density", "cum_p0"]) else None  # F x V0 x PHI x T
+    sum_ar = np.sum(ar_time, axis=1) if _should_return_any_of(["attack_prob_density", "defense_prob_density", "player_prob_density", "attack_cum_prob", "defense_cum_prob", "player_cum_prob", "p0_density", "cum_p0"]) else None  # F x V0 x PHI x T
     player_is_attacking = (player_teams[np.newaxis, :] == passer_teams[:, np.newaxis]) if _should_return_any_of(["attack_cum_poss", "attack_poss_density", "defense_cum_poss", "defense_poss_density", "player_cum_poss", "player_poss_density", "attack_cum_prob", "defense_cum_prob", "attack_prob_density", "defense_prob_density"]) else None  # F x P
-    sum_ar_att = np.nansum(np.where(player_is_attacking[:, :, np.newaxis, np.newaxis, np.newaxis], ar_time, 0), axis=1) if _should_return_any_of(["attack_cum_poss", "attack_poss_density", "defense_cum_poss", "defense_poss_density", "player_cum_poss", "player_poss_density"]) else None  # F x V0 x PHI x T
-    sum_ar_def = np.nansum(np.where(~player_is_attacking[:, :, np.newaxis, np.newaxis, np.newaxis], ar_time, 0), axis=1) if _should_return_any_of(["attack_cum_poss", "attack_poss_density", "defense_cum_poss", "defense_poss_density", "player_cum_poss", "player_poss_density"]) else None  # F x V0 x PHI x T
+    sum_ar_att = np.einsum('fp,fpvrt->fvrt', player_is_attacking, ar_time) if _should_return_any_of(["attack_cum_poss", "attack_poss_density", "defense_cum_poss", "defense_poss_density", "player_cum_poss", "player_poss_density"]) else None  # F x V0 x PHI x T, einsum has roughly 5x speedup over np.sum(np.where(player_is_attacking[:, :, np.newaxis, np.newaxis, np.newaxis], ar_time, 0), axis=1)
+    sum_ar_def = np.einsum('fp,fpvrt->fvrt', ~player_is_attacking, ar_time) if _should_return_any_of(["attack_cum_poss", "attack_poss_density", "defense_cum_poss", "defense_poss_density", "player_cum_poss", "player_poss_density"]) else None  # F x V0 x PHI x T
 
     # 3.2 Integral of sum of interception rates
-    int_sum_ar = scipy.integrate.cumulative_trapezoid(y=sum_ar, x=T_BALL_SIM[:, :, np.newaxis, :], initial=0, axis=-1) if _should_return_any_of(["attack_prob_density", "defense_prob_density", "player_prob_density", "attack_cum_prob", "defense_cum_prob", "player_cum_prob", "p0_density", "cum_p0"]) else None  # F x V0 x PHI x T
-    int_sum_ar_att = scipy.integrate.cumulative_trapezoid(y=sum_ar_att, x=T_BALL_SIM[:, :, np.newaxis, :], initial=0, axis=-1) if _should_return_any_of(["attack_cum_poss", "attack_poss_density", "defense_cum_poss", "defense_poss_density", "player_cum_poss", "player_poss_density"]) else None  # F x V0 x PHI x T
-    int_sum_ar_def = scipy.integrate.cumulative_trapezoid(y=sum_ar_def, x=T_BALL_SIM[:, :, np.newaxis, :], initial=0, axis=-1) if _should_return_any_of(["attack_cum_poss", "attack_poss_density", "defense_cum_poss", "defense_poss_density", "player_cum_poss", "player_poss_density"]) else None  # F x V0 x PHI x T
+    def fast_trapezoid(y, x_axis):  # slight speedup + saves the scipy dependency; always integrates over last axis
+        dx = np.diff(x_axis, axis=-1)
+        avg_y = 0.5 * (y[..., :-1] + y[..., 1:])
+        integral = np.cumsum(avg_y * dx, axis=-1)
+        pad_width = [(0, 0)] * y.ndim
+        pad_width[-1] = (1, 0)
+        return np.pad(integral, pad_width, mode='constant')
+
+    int_sum_ar = fast_trapezoid(y=sum_ar, x_axis=T_BALL_SIM[:, :, np.newaxis, :]) if _should_return_any_of(["attack_prob_density", "defense_prob_density", "player_prob_density", "attack_cum_prob", "defense_cum_prob", "player_cum_prob", "p0_density", "cum_p0"]) else None  # F x V0 x PHI x T
+    int_sum_ar_att = fast_trapezoid(y=sum_ar_att, x_axis=T_BALL_SIM[:, :, np.newaxis, :]) if _should_return_any_of(["attack_cum_poss", "attack_poss_density", "defense_cum_poss", "defense_poss_density", "player_cum_poss", "player_poss_density"]) else None  # F x V0 x PHI x T
+    int_sum_ar_def = fast_trapezoid(y=sum_ar_def, x_axis=T_BALL_SIM[:, :, np.newaxis, :]) if _should_return_any_of(["attack_cum_poss", "attack_poss_density", "defense_cum_poss", "defense_poss_density", "player_cum_poss", "player_poss_density"]) else None  # F x V0 x PHI x T
 
     # 3.3 Cumulative probability P0 from integrals
     cum_p0 = np.exp(-int_sum_ar) if _should_return_any_of(["attack_prob_density", "defense_prob_density", "player_prob_density", "attack_cum_prob", "defense_cum_prob", "player_cum_prob", "p0_density", "cum_p0"]) else None  # F x V0 x PHI x T, cumulative probability that no one intercepted
@@ -280,23 +303,19 @@ def simulate_passes(
     dpr_poss_over_dt = cum_p0_only_opp * ar_time if _should_return_any_of(["attack_cum_poss", "attack_poss_density", "defense_cum_poss", "defense_poss_density", "player_cum_poss", "player_poss_density"]) else None  # if "poss" in ptypes else None  # F x P x V0 x PHI x T
 
     # 3.5 Cumulative probability
-    pr_cum_prob = scipy.integrate.cumulative_trapezoid(  # F x P x V0 x PHI x T, cumulative probability that player P intercepted
+    pr_cum_prob = fast_trapezoid(  # F x P x V0 x PHI x T, cumulative probability that player P intercepted
         y=dpr_over_dt,  # F x P x V0 x PHI x T
-        x=T_BALL_SIM[:, np.newaxis, :, np.newaxis, :],  # F x V0 x T
-        initial=0, axis=-1,
+        x_axis=T_BALL_SIM[:, np.newaxis, :, np.newaxis, :],  # F x V0 x T
     ) if _should_return_any_of(["attack_cum_prob", "defense_cum_prob", "player_cum_prob", "cum_p0"]) else None
 
     # 3.6. Go from dt -> dx
     DX = radial_gridsize  # ok because we use an equally spaced grid
     dpr_over_dx = dpr_over_dt * DT[:, np.newaxis, :, np.newaxis, np.newaxis] / DX if _should_return_any_of(["attack_prob_density", "defense_prob_density", "player_prob_density"]) else None  # F x P x V0 x PHI x T
     del dpr_over_dt
-    gc.collect()
     dp0_over_dx = dp0_over_dt * DT[:, :, np.newaxis, np.newaxis] / DX if _should_return_any_of(["p0_density"]) else None  # F x V0 x PHI x T
     del dp0_over_dt
-    gc.collect()
     dpr_poss_over_dx = dpr_poss_over_dt * DT[:, np.newaxis, :, np.newaxis, np.newaxis] / DX if _should_return_any_of(["attack_cum_poss", "attack_poss_density", "defense_cum_poss", "defense_poss_density", "player_cum_poss", "player_poss_density"]) else None  # F x P x V0 x PHI x T
     del dpr_poss_over_dt
-    gc.collect()
 
     # 3.7 Aggregate over v0
     player_prob_density = (np.mean(dpr_over_dx, axis=2) if v0_prob_aggregation_mode == "mean" else np.max(dpr_over_dx, axis=2)) if _should_return_any_of(["attack_prob_density", "defense_prob_density", "player_prob_density"]) else None  # F x P x PHI x T, Take the average over all V0 in v0_grid
@@ -322,10 +341,10 @@ def simulate_passes(
         # TODO: Normalization is hard because the prob-/possibilities are time-dependent AND need to be normalized w.r.t both the player- and the time-axis.
 
     # 3.9 Aggregate over players (Individual level -> Team level)
-    attack_prob_density = np.nansum(np.where(player_is_attacking[:, :, np.newaxis, np.newaxis], player_prob_density, 0), axis=1) if _should_return_any_of(["attack_prob_density"]) else None  # F x PHI x T
-    defense_prob_density = np.nansum(np.where(~player_is_attacking[:, :, np.newaxis, np.newaxis], player_prob_density, 0), axis=1) if _should_return_any_of(["defense_prob_density"]) else None  # F x PHI x T
-    attack_poss_density = np.nanmax(np.where(player_is_attacking[:, :, np.newaxis, np.newaxis], player_poss_density, 0), axis=1) if _should_return_any_of(["attack_cum_poss", "attack_poss_density"]) else None  # F x PHI x T
-    defense_poss_density = np.nanmax(np.where(~player_is_attacking[:, :, np.newaxis, np.newaxis], player_poss_density, 0), axis=1) if _should_return_any_of(["defense_cum_poss", "defense_poss_density"]) else None  # F x PHI x T
+    attack_prob_density = np.sum(np.where(player_is_attacking[:, :, np.newaxis, np.newaxis], player_prob_density, 0), axis=1) if _should_return_any_of(["attack_prob_density"]) else None  # F x PHI x T
+    defense_prob_density = np.sum(np.where(~player_is_attacking[:, :, np.newaxis, np.newaxis], player_prob_density, 0), axis=1) if _should_return_any_of(["defense_prob_density"]) else None  # F x PHI x T
+    attack_poss_density = np.max(np.where(player_is_attacking[:, :, np.newaxis, np.newaxis], player_poss_density, 0), axis=1) if _should_return_any_of(["attack_cum_poss", "attack_poss_density"]) else None  # F x PHI x T
+    defense_poss_density = np.max(np.where(~player_is_attacking[:, :, np.newaxis, np.newaxis], player_poss_density, 0), axis=1) if _should_return_any_of(["defense_cum_poss", "defense_poss_density"]) else None  # F x PHI x T
     attack_cum_prob = np.nansum(np.where(player_is_attacking[:, :, np.newaxis, np.newaxis], pr_cum_prob_vagg, 0), axis=1) if _should_return_any_of(["attack_cum_prob"]) else None  # F x PHI x T
     defense_cum_prob = np.nansum(np.where(~player_is_attacking[:, :, np.newaxis, np.newaxis], pr_cum_prob_vagg, 0), axis=1) if _should_return_any_of(["defense_cum_prob"]) else None  # F x PHI x T
 
@@ -387,6 +406,7 @@ def simulate_passes_chunked(
     x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34,
 
     # Options
+    use_float32=True,
     use_progress_bar=True,
     chunk_size=150,
     fields_to_return=ALL_OPTIONAL_FIELDS_TO_RETURN,
@@ -417,10 +437,10 @@ def simulate_passes_chunked(
 
     >>> res = simulate_passes_chunked(np.array([[[0, 0, 0, 0], [50, 0, 0, 0]]]), np.array([[0, 0]]), np.array([[0]]), np.array([[10]]), np.array([0]), np.array([0, 1]), players=np.array(["A", "B"]), passers=np.array(["A"]), radial_gridsize=15)
     >>> res.defense_poss_density.shape, res.defense_poss_density
-    ((1, 1, 13), array([[[8.89786731e-05, 1.64897230e-04, 1.29669104e-03, 1.94280126e-01,
-             1.91894891e-01, 1.88063562e-01, 1.77544360e-01, 3.89546322e-02,
-             2.01864630e-03, 1.02515215e-04, 5.17596953e-06, 2.60590596e-07,
-             1.30974323e-08]]]))
+    ((1, 1, 13), array([[[8.8979352e-05, 1.6489999e-04, 1.2966900e-03, 1.9428012e-01,
+             1.9189487e-01, 1.8806356e-01, 1.7754434e-01, 3.8954627e-02,
+             2.0186468e-03, 1.0251525e-04, 5.1759721e-06, 2.6059030e-07,
+             1.3097404e-08]]], dtype=float32))
     """
     if chunk_size is None or chunk_size <= 0:
         chunk_size = PLAYER_POS.shape[0]
@@ -460,6 +480,7 @@ def simulate_passes_chunked(
             respect_offside,
             fields_to_return,
             x_pitch_min, x_pitch_max, y_pitch_min, y_pitch_max,
+            use_float32,
             pass_start_location_offset,
             time_offset_ball,
             radial_gridsize,
@@ -532,15 +553,15 @@ def clip_simulation_result_to_pitch(
 
     >>> res = simulate_passes(np.array([[[0, 0, 0, 0], [50, 0, 0, 0]]]), np.array([[0, 0]]), np.array([[0]]), np.array([[10]]), np.array([0]), np.array([0, 1]), players=np.array(["A", "B"]), passers=np.array(["A"]), radial_gridsize=15)
     >>> res.defense_poss_density
-    array([[[8.89786731e-05, 1.64897230e-04, 1.29669104e-03, 1.94280126e-01,
-             1.91894891e-01, 1.88063562e-01, 1.77544360e-01, 3.89546322e-02,
-             2.01864630e-03, 1.02515215e-04, 5.17596953e-06, 2.60590596e-07,
-             1.30974323e-08]]])
+    array([[[8.8979352e-05, 1.6489999e-04, 1.2966900e-03, 1.9428012e-01,
+             1.9189487e-01, 1.8806356e-01, 1.7754434e-01, 3.8954627e-02,
+             2.0186468e-03, 1.0251525e-04, 5.1759721e-06, 2.6059030e-07,
+             1.3097404e-08]]], dtype=float32)
     >>> clip_simulation_result_to_pitch(res).defense_poss_density
-    array([[[8.89786731e-05, 1.64897230e-04, 1.29669104e-03, 1.94280126e-01,
-             0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00,
-             0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00,
-             0.00000000e+00]]])
+    array([[[8.8979352e-05, 1.6489999e-04, 1.2966900e-03, 1.9428012e-01,
+             0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
+             0.0000000e+00, 0.0000000e+00, 0.0000000e+00, 0.0000000e+00,
+             0.0000000e+00]]], dtype=float32)
     """
     x = simulation_result.x_grid
     y = simulation_result.y_grid
@@ -588,20 +609,20 @@ def integrate_surfaces(result: SimulationResult, x_pitch_min=-52.5, x_pitch_max=
 
     >>> res = simulate_passes(np.array([[[0, 0, 0, 0], [50, 0, 0, 0]]]), np.array([[0, 0]]), np.array([[0, 1*np.pi/3, 2*np.pi/3]]), np.array([[10, 10, 10]]), np.array([0]), np.array([0, 1]), radial_gridsize=15)
     >>> res.attack_poss_density
-    array([[[1.03407896e-03, 4.34113430e-04, 5.27060765e-04, 1.51129699e-04,
-             1.07173438e-05, 9.21090837e-07, 1.63818876e-07, 2.68226445e-07,
-             1.35596313e-08, 6.79782508e-10, 3.40267229e-11, 1.70221067e-12,
-             8.51279969e-14],
-            [1.03407896e-03, 4.34208810e-04, 5.31611162e-04, 6.84624667e-04,
-             9.50183615e-04, 3.61836440e-04, 6.51260823e-05, 1.07221499e-04,
-             5.43985030e-06, 2.73437156e-07, 1.37154339e-08, 6.87289329e-10,
-             3.44205118e-11],
-            [1.03407896e-03, 4.34301416e-04, 5.32301463e-04, 6.87956371e-04,
-             9.73593533e-04, 1.66948127e-03, 5.92149182e-03, 1.93318292e-01,
-             1.94810292e-01, 1.94616189e-01, 1.94033526e-01, 1.93218568e-01,
-             1.92180048e-01]]])
+    array([[[1.0340805e-03, 4.3411207e-04, 5.2705978e-04, 1.5112986e-04,
+             1.0717372e-05, 9.2109138e-07, 1.6381951e-07, 2.6822661e-07,
+             1.3559648e-08, 6.7978312e-10, 3.4026750e-11, 1.7022109e-12,
+             8.5128024e-14],
+            [1.0340805e-03, 4.3420735e-04, 5.3161022e-04, 6.8462518e-04,
+             9.5018570e-04, 3.6183646e-04, 6.5126311e-05, 1.0722155e-04,
+             5.4398561e-06, 2.7343765e-07, 1.3715464e-08, 6.8728956e-10,
+             3.4420539e-11],
+            [1.0340805e-03, 4.3430002e-04, 5.3230050e-04, 6.8795693e-04,
+             9.7359554e-04, 1.6694812e-03, 5.9215087e-03, 1.9331828e-01,
+             1.9481026e-01, 1.9461618e-01, 1.9403352e-01, 1.9321854e-01,
+             1.9218002e-01]]], dtype=float32)
     >>> integrate_surfaces(res)
-    Areas(attack_prob=array([10.74287034]), attack_poss=array([10.92307646]), defense_prob=array([224.5886554]), defense_poss=array([1002.23676372]), player_prob=array([[ 10.74287034, 224.5886554 ]]), player_poss=array([[  10.92307646, 1002.23676372]]))
+    Areas(attack_prob=array([10.742853], dtype=float32), attack_poss=array([10.9230585], dtype=float32), defense_prob=array([224.5887], dtype=float32), defense_poss=array([1002.2367], dtype=float32), player_prob=array([[ 10.742853, 224.5887  ]], dtype=float32), player_poss=array([[  10.9230585, 1002.2367   ]], dtype=float32))
     """
     result = clip_simulation_result_to_pitch(result, x_pitch_min, x_pitch_max, y_pitch_min, y_pitch_max)
 
@@ -670,17 +691,17 @@ def as_dangerous_result(result, danger, danger_weight):
 
     >>> res = simulate_passes_chunked(np.array([[[0, 0, 0, 0], [50, 0, 0, 0]]]), np.array([[0, 0]]), np.array([[0]]), np.array([[10]]), np.array([0]), np.array([0, 1]), players=np.array(["A", "B"]), passers=np.array(["A"]), radial_gridsize=15)
     >>> res.defense_poss_density
-    array([[[8.89786731e-05, 1.64897230e-04, 1.29669104e-03, 1.94280126e-01,
-             1.91894891e-01, 1.88063562e-01, 1.77544360e-01, 3.89546322e-02,
-             2.01864630e-03, 1.02515215e-04, 5.17596953e-06, 2.60590596e-07,
-             1.30974323e-08]]])
+    array([[[8.8979352e-05, 1.6489999e-04, 1.2966900e-03, 1.9428012e-01,
+             1.9189487e-01, 1.8806356e-01, 1.7754434e-01, 3.8954627e-02,
+             2.0186468e-03, 1.0251525e-04, 5.1759721e-06, 2.6059030e-07,
+             1.3097404e-08]]], dtype=float32)
     >>> danger = np.array([[[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.0, 1.0]]])
     >>> dangerous_res = as_dangerous_result(res, danger, danger_weight=1)
     >>> dangerous_res.defense_poss_density
-    array([[[0.00000000e+00, 1.64897230e-05, 2.59338208e-04, 5.82840377e-02,
-             7.67579563e-02, 9.40317808e-02, 1.06526616e-01, 2.72682426e-02,
-             1.61491704e-03, 9.22636939e-05, 5.17596953e-06, 2.60590596e-07,
-             1.30974323e-08]]])
+    array([[[0.00000000e+00, 1.64899990e-05, 2.59337993e-04, 5.82840353e-02,
+             7.67579496e-02, 9.40317810e-02, 1.06526604e-01, 2.72682387e-02,
+             1.61491744e-03, 9.22637271e-05, 5.17597209e-06, 2.60590298e-07,
+             1.30974041e-08]]])
     """
     def weighted_multiplication(_danger, _space, weight=danger_weight):
         return (_danger ** (1 / weight)) * _space if weight is not None else _danger * _space

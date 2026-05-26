@@ -104,7 +104,7 @@ def parameter_exploration_dashboard():
     df_passes["xc"] = ret.xc
     df_passes["frame_index"] = ret.event_frame_index
 
-    ret2 = accessible_space.get_das_gained(df_passes, df_tracking, tracking_period_col="period_id")
+    ret2 = accessible_space.get_das_gained(df_passes, df_tracking, tracking_period_col="period_id", tracking_player_in_possession_col="player_in_possession")
     df_passes["DAS Gained"] = ret2.das_gained
 
     st.write(df_passes)

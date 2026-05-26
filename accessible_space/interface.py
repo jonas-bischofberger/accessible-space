@@ -67,6 +67,9 @@ ReturnValueDAS = collections.namedtuple("ReturnValueDAS", [
 ReturnValueIndividualDAS = collections.namedtuple("ReturnValueDAS", [
     "acc_space", "das", "player_acc_space", "player_das", "frame_index", "player_index", "simulation_result", "dangerous_result"
 ])
+ReturnValueDASCovered = collections.namedtuple("ReturnValueDASCovered", [
+    "cover_shadow_das", "cover_shadow_as", "frame_index", "player_index", "simulation_result", "dangerous_result"
+])
 
 
 def _check_presence_of_required_columns(df, str_data, column_names, column_values, additional_message=None):
@@ -259,7 +262,7 @@ def per_object_frameify_tracking_data(
         df_player = df_player.rename(columns={coord_col: new_coord_col for coord_col, new_coord_col in zip(coordinate_cols_player, new_coordinate_cols)})
         for col in new_coordinate_cols:
             if col not in df_player.columns:
-                df_player[col] = pd.NA
+                df_player[col] = np.nan
 
         df_player[new_player_col] = player
         df_player[new_team_col] = player_to_team.get(player, None)
@@ -350,6 +353,7 @@ def get_das_gained(
     x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34,
 
     # Options
+    use_float32=True,
     infer_attacking_direction=True,
     exclude_passer=False,
     respect_offside=True,
@@ -402,9 +406,9 @@ def get_das_gained(
     >>> df_passes["AS_Gained"], df_passes["DAS_Gained"], df_passes["fr_index"], simulation_result = result.as_gained, result.das_gained, result.frame_index, result.simulation_result
     >>> df_passes
        frame_id  target_frame_id player_id receiver_id team_id     x     y  x_target  y_target  pass_outcome receiver_team_id         event_string    AS_Gained  DAS_Gained  fr_index
-    0         0                6         A           B    Home  -0.1   0.0        20        30             1             Home   0: Pass A -> B (1)   657.452117   29.500628         0
-    1         6                9         B           X    Home  25.0  30.0        15        30             0             Away   6: Pass B -> X (0) -3106.024327  -20.786560         1
-    2        14               16         C           Y    Home -13.8  40.1        49        -1             0             Away  14: Pass C -> Y (0) -2542.163913   -0.270949         2
+    0         0                6         A           B    Home  -0.1   0.0        20        30             1             Home   0: Pass A -> B (1)   657.452881   29.500614         0
+    1         6                9         B           X    Home  25.0  30.0        15        30             0             Away   6: Pass B -> X (0) -3106.025146  -20.786549         1
+    2        14               16         C           Y    Home -13.8  40.1        49        -1             0             Away  14: Pass C -> Y (0) -2542.163818   -0.270949         2
     """
     _check_presence_of_required_columns(df_passes, "df_passes", ["event_success_col", "event_frame_col", "event_target_frame_col"], [event_success_col, event_frame_col, event_target_frame_col])
     _check_presence_of_required_columns(df_tracking, "df_tracking", ["tracking_frame_col", "tracking_x_col", "tracking_y_col", "tracking_player_col", "tracking_team_col"], [tracking_frame_col, tracking_x_col, tracking_y_col, tracking_player_col, tracking_team_col])
@@ -457,6 +461,7 @@ def get_das_gained(
         x_pitch_min=x_pitch_min, x_pitch_max=x_pitch_max, y_pitch_min=y_pitch_min, y_pitch_max=y_pitch_max,
 
         # Options
+        use_float32=use_float32,
         infer_attacking_direction=infer_attacking_direction,
         danger_weight=danger_weight,
         chunk_size=chunk_size,
@@ -550,6 +555,7 @@ def get_expected_pass_completion(
     x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34,
 
     # Options
+    use_float32=True,
     clip_to_pitch=True,  # Whether to calculate xC as aggregated interception probability at the pitch boundary or at the end of the simulation (beyond pitch boundary)
     use_event_coordinates_as_ball_position=True,
     use_event_team_as_team_in_possession=True,
@@ -609,7 +615,7 @@ def get_expected_pass_completion(
     1         6                9         B           X    Home  25.0  30.0        15        30             0             Away   6: Pass B -> X (0)  0.981935            1
     2        14               16         C           Y    Home -13.8  40.1        49        -1             0             Away  14: Pass C -> Y (0)  0.591103            2
     >>> simulation_result.attack_cum_poss[df_passes["frame_index"].iloc[0], 0, -1]
-    0.9567170760117738
+    0.95671713
     """
     _check_presence_of_required_columns(df_tracking, "df_tracking", column_names=["tracking_x_col", "tracking_y_col", "tracking_vx_col", "tracking_vy_col", "tracking_frame_col", "tracking_team_col", "tracking_player_col"], column_values=[tracking_x_col, tracking_y_col, tracking_vx_col, tracking_vy_col, tracking_frame_col, tracking_team_col, tracking_player_col])
     _check_presence_of_required_columns(df_passes, "df_passes", column_names=["event_frame_col", "event_start_x_col", "event_start_y_col", "event_end_x_col", "event_end_y_col", "event_team_col", "event_player_col"], column_values=[event_frame_col, event_start_x_col, event_start_y_col, event_end_x_col, event_end_y_col, event_team_col, event_player_col])
@@ -756,6 +762,7 @@ def get_expected_pass_completion(
 
         chunk_size=chunk_size,
         x_pitch_min=x_pitch_min, x_pitch_max=x_pitch_max, y_pitch_min=y_pitch_min, y_pitch_max=y_pitch_max,
+        use_float32=use_float32,
     )
 
     def last_non_nan_value(arr):
@@ -814,6 +821,7 @@ def get_dangerous_accessible_space(
     x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34,
 
     # Options
+    use_float32=True,
     infer_attacking_direction=True,
     exclude_passer=False,
     respect_offside=True,
@@ -867,11 +875,11 @@ def get_dangerous_accessible_space(
     >>> df_tracking["AS"], df_tracking["DAS"], df_tracking["frame_index"], df_tracking["player_index"] = ret.acc_space, ret.das, ret.frame_index, ret.player_index
     >>> df_tracking.head(5)
        frame_id player_id team_id    x     y   vx    vy team_in_possession player_in_possession  period_id           AS       DAS  frame_index  player_index
-    0         0         A    Home -0.1  0.00  0.1  0.05               Home                    A          0  2395.149542  0.410518            0           0.0
-    1         1         A    Home  0.0  0.05  0.1  0.05               Home                    A          0  2398.887113  0.416772            1           0.0
-    2         2         A    Home  0.1  0.10  0.1  0.05               Home                    A          0  2399.198243  0.422653            2           0.0
-    3         3         A    Home  0.2  0.15  0.1  0.05               Home                    A          0  2415.192088  0.428884            3           0.0
-    4         4         A    Home  0.3  0.20  0.1  0.05               Home                    A          0  2407.701873  0.425983            4           0.0
+    0         0         A    Home -0.1  0.00  0.1  0.05               Home                    A          0  2395.148926  0.410518            0           0.0
+    1         1         A    Home  0.0  0.05  0.1  0.05               Home                    A          0  2398.887207  0.416772            1           0.0
+    2         2         A    Home  0.1  0.10  0.1  0.05               Home                    A          0  2399.198242  0.422653            2           0.0
+    3         3         A    Home  0.2  0.15  0.1  0.05               Home                    A          0  2415.193359  0.428884            3           0.0
+    4         4         A    Home  0.3  0.20  0.1  0.05               Home                    A          0  2407.701904  0.425983            4           0.0
     """
     n_v0 = round(n_v0)
     missing_columns = [(parameter_name, col) for parameter_name, col in [("frame_col", frame_col), ("player_col", player_col), ("team_col", team_col), ("x_col", x_col), ("y_col", y_col), ("vx_col", vx_col), ("vy_col", vy_col), ("team_in_possession_col", team_in_possession_col)] if col not in df_tracking.columns]
@@ -970,6 +978,7 @@ def get_dangerous_accessible_space(
         chunk_size=chunk_size,
 
         x_pitch_min=x_pitch_min, x_pitch_max=x_pitch_max, y_pitch_min=y_pitch_min, y_pitch_max=y_pitch_max,
+        use_float32=use_float32,
 
         playing_direction=ATTACKING_DIRECTION,
     )
@@ -1025,6 +1034,7 @@ def get_individual_dangerous_accessible_space(
     x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34,
 
     # Options
+    use_float32=True,
     infer_attacking_direction=True,
     exclude_passer=False,
     respect_offside=True,
@@ -1069,10 +1079,11 @@ def get_individual_dangerous_accessible_space(
         df_tracking,
         frame_col, player_col, ball_player_id, team_col, x_col, y_col, vx_col, vy_col, attacking_direction_col,
         period_col, team_in_possession_col, player_in_possession_col, x_pitch_min, x_pitch_max, y_pitch_min, y_pitch_max,
-        infer_attacking_direction, exclude_passer, respect_offside, danger_weight, chunk_size, return_cropped_result, additional_fields_to_return,
-        use_progress_bar, n_angles, phi_offset, n_v0, v0_min, v0_max, pass_start_location_offset, time_offset_ball,
-        radial_gridsize, b0, b1, player_velocity, keep_inertial_velocity, use_max, v_max, a_max, inertial_seconds,
-        tol_distance, use_approx_two_point, v0_prob_aggregation_mode, normalize, use_efficient_sigmoid, factor, factor2,
+        use_float32, infer_attacking_direction, exclude_passer, respect_offside, danger_weight, chunk_size,
+        return_cropped_result, additional_fields_to_return, use_progress_bar, n_angles, phi_offset, n_v0, v0_min, v0_max,
+        pass_start_location_offset, time_offset_ball, radial_gridsize, b0, b1, player_velocity, keep_inertial_velocity,
+        use_max, v_max, a_max, inertial_seconds, tol_distance, use_approx_two_point, v0_prob_aggregation_mode, normalize,
+        use_efficient_sigmoid, factor, factor2,
     )
 
     df_tracking["frame_index"] = ret.frame_index
@@ -1107,7 +1118,7 @@ def infer_playing_direction(
     1       0         0       A                  H  2  6
     2       1         1       H                  A  3  7
     3       1         1       A                  A  4  8
-    >>> df_tracking["playing_direction"] = infer_playing_direction(df_tracking, team_col="team_id", period_col="period", team_in_possession_col="team_in_possession", x_col="x")
+    >>> df_tracking["playing_direction"] = infer_playing_direction(df_tracking, team_col="team_id", period_col="period", team_in_possession_col="team_in_possession", x_col="x", ball_team=None)
     >>> df_tracking
        period  frame_id team_id team_in_possession  x  y  playing_direction
     0       0         0       H                  H  1  5                1.0
@@ -1146,6 +1157,9 @@ def infer_playing_direction(
 
     playing_direction_map = []
     for period_id, df_tracking_period in df_tracking_for_mean.groupby(_period_col):
+        if df_tracking_period[team_col].isna().all():  # empty half e.g. penalty shootout after tracking was merged onto events
+            continue
+
         x_mean = df_tracking_period.groupby(team_col)[x_col].mean()
         smaller_x_team = x_mean.idxmin()
         greater_x_team = [team for team in teams if team != smaller_x_team][0]
@@ -1199,3 +1213,187 @@ def plot_expected_completion_surface(simulation_result: SimulationResult, frame_
         plt.plot(x, y, 'ko', ms=0.5)
 
     return plt.gcf()
+
+
+def get_das_covered(
+    # Data
+    df_tracking,
+
+    # Tracking schema
+    frame_col="frame_id", player_col="player_id", ball_player_id="ball",
+    team_col="team_id", x_col="x", y_col="y", vx_col="vx", vy_col="vy",
+    attacking_direction_col=None, period_col=_unset,
+    team_in_possession_col="team_in_possession", player_in_possession_col=None,
+
+    # Pitch coordinate system
+    x_pitch_min=-52.5, x_pitch_max=52.5, y_pitch_min=-34, y_pitch_max=34,
+
+    # Options
+    use_float32=True,
+    infer_attacking_direction=True,
+    exclude_passer=False,
+    respect_offside=True,
+    danger_weight=_DEFAULT_DANGER_WEIGHT,
+    chunk_size=150,
+    return_cropped_result=False,
+    additional_fields_to_return=None,
+    use_progress_bar=True,
+
+    # DAS Parameters
+    n_angles=_DEFAULT_N_ANGLES_FOR_DAS,
+    phi_offset=_DEFAULT_PHI_OFFSET,
+    n_v0=_DEFAULT_N_V0_FOR_DAS,
+    v0_min=_DEFAULT_V0_MIN_FOR_DAS,
+    v0_max=_DEFAULT_V0_MAX_FOR_DAS,
+
+    # Simulation parameters
+    pass_start_location_offset=_DEFAULT_PASS_START_LOCATION_OFFSET_FOR_DAS,
+    time_offset_ball=_DEFAULT_TIME_OFFSET_BALL_FOR_DAS,
+    radial_gridsize=_DEFAULT_RADIAL_GRIDSIZE_FOR_DAS,
+    b0=_DEFAULT_B0_FOR_DAS,
+    b1=_DEFAULT_B1_FOR_DAS,
+    player_velocity=_DEFAULT_PLAYER_VELOCITY_FOR_DAS,
+    keep_inertial_velocity=_DEFAULT_KEEP_INERTIAL_VELOCITY_FOR_DAS,
+    use_max=_DEFAULT_USE_MAX_FOR_DAS,
+    v_max=_DEFAULT_V_MAX_FOR_DAS,
+    a_max=_DEFAULT_A_MAX_FOR_DAS,
+    inertial_seconds=_DEFAULT_INERTIAL_SECONDS_FOR_DAS,
+    tol_distance=_DEFAULT_TOL_DISTANCE_FOR_DAS,
+    use_approx_two_point=_DEFAULT_USE_APPROX_TWO_POINT_FOR_DAS,
+    v0_prob_aggregation_mode=_DEFAULT_V0_PROB_AGGREGATION_MODE_FOR_DAS,
+    normalize=_DEFAULT_NORMALIZE_FOR_DAS,
+    use_efficient_sigmoid=_DEFAULT_USE_EFFICIENT_SIGMOID_FOR_DAS,
+    factor=_DEFAULT_FACTOR_FOR_DAS,
+    factor2=_DEFAULT_FACTOR2_FOR_DAS,
+) -> ReturnValueDASCovered:
+    """
+    Cover shadow DAS: for each (frame, defender) pair, compute the attacking team's DAS
+    after removing that defender from the tracking data.
+
+    The result is a Series aligned with df_tracking. Defender rows receive the DAS value
+    of the attacking team in the hypothetical scenario where that defender is absent.
+    All other rows (attackers, ball) receive NaN.
+
+    The implementation creates one virtual frame per unique (frame, defender) combination,
+    runs get_dangerous_accessible_space once across all virtual frames, then maps results back.
+    """
+    i_defender = (
+            df_tracking[team_in_possession_col].notna()
+            & (df_tracking[player_col] != ball_player_id)
+            & (df_tracking[team_col] != df_tracking[team_in_possession_col])
+    )
+    df_pairs = df_tracking.loc[i_defender, [frame_col, player_col]].drop_duplicates([frame_col, player_col]).reset_index(drop=True)
+    df_pairs["virtual_frame_id"] = df_pairs.index
+
+    # For each virtual frame: all rows of that original frame except the removed defender
+    df_virtual = df_tracking.merge(
+        df_pairs[[frame_col, player_col, "virtual_frame_id"]].rename(columns={player_col: "_removed_defender"}),
+        on=frame_col,
+        how="inner",
+    )
+    df_virtual = df_virtual[df_virtual[player_col] != df_virtual["_removed_defender"]].copy()
+    df_virtual[frame_col] = df_virtual["virtual_frame_id"]
+    df_virtual = df_virtual.drop(columns=["_removed_defender"])
+
+    _das_kwargs = dict(
+        frame_col=frame_col, player_col=player_col, ball_player_id=ball_player_id,
+        team_col=team_col, x_col=x_col, y_col=y_col, vx_col=vx_col, vy_col=vy_col,
+        attacking_direction_col=attacking_direction_col, period_col=period_col,
+        team_in_possession_col=team_in_possession_col, player_in_possession_col=player_in_possession_col,
+        x_pitch_min=x_pitch_min, x_pitch_max=x_pitch_max, y_pitch_min=y_pitch_min, y_pitch_max=y_pitch_max,
+        use_float32=use_float32, infer_attacking_direction=infer_attacking_direction,
+        exclude_passer=exclude_passer, respect_offside=respect_offside,
+        danger_weight=danger_weight, chunk_size=chunk_size,
+        return_cropped_result=return_cropped_result, additional_fields_to_return=additional_fields_to_return,
+        use_progress_bar=use_progress_bar,
+        n_angles=n_angles, phi_offset=phi_offset, n_v0=n_v0, v0_min=v0_min, v0_max=v0_max,
+        pass_start_location_offset=pass_start_location_offset, time_offset_ball=time_offset_ball,
+        radial_gridsize=radial_gridsize, b0=b0, b1=b1, player_velocity=player_velocity,
+        keep_inertial_velocity=keep_inertial_velocity, use_max=use_max, v_max=v_max, a_max=a_max,
+        inertial_seconds=inertial_seconds, tol_distance=tol_distance,
+        use_approx_two_point=use_approx_two_point, v0_prob_aggregation_mode=v0_prob_aggregation_mode,
+        normalize=normalize, use_efficient_sigmoid=use_efficient_sigmoid,
+        factor=factor, factor2=factor2,
+    )
+
+    # Baseline DAS/AS (with all defenders present), per original frame
+    ret_baseline = get_dangerous_accessible_space(df_tracking, **_das_kwargs)
+
+    df_baseline = df_tracking[[frame_col]].copy()
+    df_baseline["das"] = ret_baseline.das       # index-aligned assignment
+    df_baseline["acc_space"] = ret_baseline.acc_space
+    baseline_fr_das = df_baseline.groupby(frame_col)["das"].first()
+    baseline_fr_as = df_baseline.groupby(frame_col)["acc_space"].first()
+
+    # Virtual-frame DAS/AS (one defender removed per frame)
+    ret_virtual = get_dangerous_accessible_space(df_virtual, **_das_kwargs)
+
+    # DAS and AS are frame-level (same value for every row in the same virtual frame)
+    df_virtual_frames = df_virtual[[frame_col]].copy()
+    df_virtual_frames["das"] = ret_virtual.das
+    df_virtual_frames["acc_space"] = ret_virtual.acc_space
+    df_pairs["das"] = df_pairs["virtual_frame_id"].map(df_virtual_frames.groupby(frame_col)["das"].first()) - df_pairs[frame_col].map(baseline_fr_das)
+    df_pairs["acc_space"] = df_pairs["virtual_frame_id"].map(df_virtual_frames.groupby(frame_col)["acc_space"].first()) - df_pairs[frame_col].map(baseline_fr_as)
+
+    pair_to_das = df_pairs.set_index([frame_col, player_col])["das"]
+    pair_to_as = df_pairs.set_index([frame_col, player_col])["acc_space"]
+    defender_index = df_tracking.loc[i_defender].set_index([frame_col, player_col]).index
+
+    cover_shadow_das = pd.Series(np.nan, index=df_tracking.index, dtype=float)
+    cover_shadow_das.loc[i_defender] = defender_index.map(pair_to_das).values
+
+    cover_shadow_as = pd.Series(np.nan, index=df_tracking.index, dtype=float)
+    cover_shadow_as.loc[i_defender] = defender_index.map(pair_to_as).values
+
+    baseline_poss = ret_baseline.simulation_result.attack_poss_density  # F x PHI x T
+    virtual_poss = ret_virtual.simulation_result.attack_poss_density  # F_virt x PHI x T
+    baseline_dangerous_poss = ret_baseline.dangerous_result.attack_poss_density
+    virtual_dangerous_poss = ret_virtual.dangerous_result.attack_poss_density
+
+    F, PHI, T = baseline_poss.shape
+
+    df_baseline_fi = df_tracking[[frame_col]].copy()
+    df_baseline_fi["frame_index"] = ret_baseline.frame_index
+    baseline_frame_to_idx = df_baseline_fi.dropna(subset=["frame_index"]).drop_duplicates(frame_col).set_index(frame_col)["frame_index"].astype(int)
+
+    df_virtual_fi = df_virtual[[frame_col]].copy()
+    df_virtual_fi["frame_index"] = ret_virtual.frame_index
+    virtual_frame_to_idx = df_virtual_fi.dropna(subset=["frame_index"]).drop_duplicates(frame_col).set_index(frame_col)["frame_index"].astype(int)
+
+    # Use the same player-to-index mapping as the baseline simulation so that player_poss_density axis-1 has size P (all players) and is indexed consistently with all other player-indexed fields.
+    df_player_lookup = df_tracking[[player_col]].copy()
+    df_player_lookup["player_index"] = ret_baseline.player_index
+    player_to_player_idx = df_player_lookup.dropna(subset=["player_index"]).drop_duplicates(player_col).set_index(player_col)["player_index"].astype(int)
+    P = int(ret_baseline.player_index.dropna().max()) + 1
+
+    df_pairs["_baseline_fi"] = df_pairs[frame_col].map(baseline_frame_to_idx)
+    df_pairs["_virtual_fi"] = df_pairs["virtual_frame_id"].map(virtual_frame_to_idx)
+    df_pairs["_defender_idx"] = df_pairs[player_col].map(player_to_player_idx)
+
+    i_valid = df_pairs["_baseline_fi"].notna() & df_pairs["_virtual_fi"].notna() & df_pairs["_defender_idx"].notna()
+    df_valid = df_pairs[i_valid]
+    f_indices = df_valid["_baseline_fi"].astype(int).values
+    vf_indices = df_valid["_virtual_fi"].astype(int).values
+    d_indices = df_valid["_defender_idx"].astype(int).values
+
+    diff_poss = np.full((F, P, PHI, T), np.nan, dtype=baseline_poss.dtype)
+    diff_poss[f_indices, d_indices] = virtual_poss[vf_indices] - baseline_poss[f_indices]
+
+    diff_dangerous_poss = np.full((F, P, PHI, T), np.nan, dtype=baseline_dangerous_poss.dtype)
+    diff_dangerous_poss[f_indices, d_indices] = virtual_dangerous_poss[vf_indices] - baseline_dangerous_poss[f_indices]
+
+    simulation_result = ret_baseline.simulation_result._replace(player_poss_density=diff_poss)
+    dangerous_result = ret_baseline.dangerous_result._replace(player_poss_density=diff_dangerous_poss)
+
+    frame_index = df_tracking[frame_col].map(baseline_frame_to_idx)
+    player_index = pd.Series(np.nan, index=df_tracking.index, dtype=float)
+    player_index.loc[i_defender] = df_tracking.loc[i_defender, player_col].map(player_to_player_idx)
+
+    return ReturnValueDASCovered(
+        cover_shadow_das=cover_shadow_das,
+        cover_shadow_as=cover_shadow_as,
+        frame_index=frame_index,
+        player_index=player_index,
+        simulation_result=simulation_result,
+        dangerous_result=dangerous_result,
+    )

@@ -1,6 +1,6 @@
 [project]
 name = "accessible_space"
-version = "2.0.15"
+version = "2.1.0"
 authors = [
   {name="Jonas Bischofberger", email="jonas.bischofberger@univie.ac.at"},
 ]
@@ -11,8 +11,8 @@ requires-python = ">=3.7"
 dependencies = [
     "matplotlib",
     "numpy",
+    "numexpr",
     "pandas",
-    "scipy",
     "tqdm",
 ]
 classifiers = [
@@ -37,7 +37,7 @@ full = [
     "wfork-streamlit-profiler",
     "brokenaxes",
     "mplsoccer",
-    "databallpy",
+    "databallpy; python_version >= '3.10'",
     "numpy<2.3.0",  # necessary for databallpy
 ]
 dev = [
@@ -48,12 +48,10 @@ dev = [
     "wfork-streamlit-profiler",
     "brokenaxes",
     "mplsoccer",
-    "databallpy",
+    "databallpy; python_version >= '3.10'",
     "numpy<2.3.0",  # necessary for databallpy
-
     "pytest",
     "pytest-cov",
-#    "nbval",
     "build",
     "twine",
     "setuptools",
@@ -82,6 +80,7 @@ dev37 = [
 
 [project.urls]
 Repository = "https://github.com/jonas-bischofberger/accessible-space"
+Changelog = "https://github.com/jonas-bischofberger/accessible-space/blob/main/CHANGELOG.md"
 
 
 [build-system]
@@ -90,6 +89,9 @@ build-backend = "setuptools.build_meta"
 
 
 [tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
 addopts = "--doctest-modules --cov=accessible_space --doctest-continue-on-failure -rsx"
 filterwarnings = """
     ignore:Inferring attacking direction:UserWarning

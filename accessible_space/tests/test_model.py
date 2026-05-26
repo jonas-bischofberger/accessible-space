@@ -1006,3 +1006,135 @@ def test_databallpy():
     assert np.isclose(game.tracking_data["dangerous_accessible_space"].dropna().iloc[2], 0.135279, atol=1e-4)
     assert np.isclose(game.tracking_data["dangerous_accessible_space"].dropna().iloc[3], 0.135522, atol=1e-4)
     assert np.isclose(game.tracking_data["dangerous_accessible_space"].dropna().iloc[4], 0.135579, atol=1e-4)
+
+
+def _get_das_covered_fixture():
+    """Single frame: attacker 'a' at origin, two defenders at very different threat levels."""
+    return pd.DataFrame({
+        "frame_id":            [0,    0,    0,    0     ],
+        "player_id":           ["a",  "x",  "y",  "ball"],
+        "team_id":             ["H",  "A",  "A",  None  ],
+        "x":                   [0.,   20.,  -40., 0.    ],
+        "y":                   [0.,   0.,   0.,   0.    ],
+        "vx":                  [0.,   0.,   0.,   0.    ],
+        "vy":                  [0.,   0.,   0.,   0.    ],
+        "team_in_possession":  ["H",  "H",  "H",  "H"  ],
+        "attacking_direction": [1,    1,    1,    1     ],
+    })
+
+
+def test_das_covered_nan_pattern_and_ordering():
+    """
+    Defenders get cover shadow values; attacker and ball get NaN.
+    The defender blocking the attacking corridor ('x' at 20m ahead)
+    must rank above the one standing 40m behind play ('y').
+    """
+    df = _get_das_covered_fixture()
+    _kwargs = dict(
+        attacking_direction_col="attacking_direction",
+        infer_attacking_direction=False,
+        period_col=None,
+        respect_offside=False,
+        use_progress_bar=False,
+    )
+
+    ret = accessible_space.get_das_covered(df, **_kwargs)
+
+    i_a    = df["player_id"] == "a"
+    i_ball = df["player_id"] == "ball"
+    i_x    = df["player_id"] == "x"
+    i_y    = df["player_id"] == "y"
+
+    # Attacker and ball rows must be NaN
+    assert pd.isna(ret.cover_shadow_das[i_a].values[0])
+    assert pd.isna(ret.cover_shadow_das[i_ball].values[0])
+    assert pd.isna(ret.cover_shadow_as[i_a].values[0])
+    assert pd.isna(ret.cover_shadow_as[i_ball].values[0])
+
+    # Defender rows must have valid non-negative values (removing a defender can only help the attack)
+    assert pd.notna(ret.cover_shadow_das[i_x].values[0])
+    assert pd.notna(ret.cover_shadow_das[i_y].values[0])
+    assert (ret.cover_shadow_das[i_x | i_y] >= 0).all()
+
+    # Defender directly in the attacking corridor should have higher cover shadow than one behind play
+    shadow_x = ret.cover_shadow_das[i_x].values[0]
+    shadow_y = ret.cover_shadow_das[i_y].values[0]
+    assert shadow_x > shadow_y, f"Expected shadow_x ({shadow_x:.2f}) > shadow_y ({shadow_y:.2f})"
+
+
+def test_das_covered_cross_validate():
+    """
+    Cover shadow for each defender must equal (DAS without that defender) - (baseline DAS),
+    computed independently via get_dangerous_accessible_space.
+    """
+    df = _get_das_covered_fixture()
+    _kwargs = dict(
+        attacking_direction_col="attacking_direction",
+        infer_attacking_direction=False,
+        period_col=None,
+        respect_offside=False,
+        use_progress_bar=False,
+    )
+
+    ret = accessible_space.get_das_covered(df, **_kwargs)
+
+    ret_baseline = accessible_space.get_dangerous_accessible_space(df, **_kwargs)
+    baseline_das = ret_baseline.das[df["player_id"] == "a"].values[0]
+
+    for removed in ["x", "y"]:
+        df_without = df[df["player_id"] != removed].copy()
+        ret_without = accessible_space.get_dangerous_accessible_space(df_without, **_kwargs)
+        das_without = ret_without.das[df_without["player_id"] == "a"].values[0]
+
+        expected = das_without - baseline_das
+        actual = ret.cover_shadow_das[df["player_id"] == removed].values[0]
+        assert np.isclose(actual, expected, rtol=1e-4), (
+            f"Defender '{removed}': expected cover shadow {expected:.4f}, got {actual:.4f}"
+        )
+
+
+def test_das_covered_simulation_result_shape():
+    """
+    player_poss_density in the returned simulation_result must use the full player count P
+    (not just the number of defenders D), so its axis-1 is consistent with all other
+    player-indexed fields in the SimulationResult namedtuple.
+    """
+    df = _get_das_covered_fixture()
+
+    ret = accessible_space.get_das_covered(
+        df,
+        attacking_direction_col="attacking_direction",
+        infer_attacking_direction=False,
+        period_col=None,
+        respect_offside=False,
+        use_progress_bar=False,
+    )
+
+    ret_baseline = accessible_space.get_dangerous_accessible_space(
+        df,
+        attacking_direction_col="attacking_direction",
+        infer_attacking_direction=False,
+        period_col=None,
+        respect_offside=False,
+        use_progress_bar=False,
+    )
+
+    P = int(ret_baseline.player_index.dropna().max()) + 1
+    assert ret.simulation_result.player_poss_density.shape[1] == P
+    assert ret.dangerous_result.player_poss_density.shape[1] == P
+
+    # player_index for defenders must be in range [0, P) and match the baseline mapping
+    i_defender = (df["team_id"] != df["team_in_possession"]) & (df["player_id"] != "ball")
+    defender_player_indices = ret.player_index[i_defender].dropna()
+    assert (defender_player_indices >= 0).all()
+    assert (defender_player_indices < P).all()
+
+    # The same player must get the same player_index as in get_dangerous_accessible_space
+    baseline_player_index = ret_baseline.player_index
+    for pid in df.loc[i_defender, "player_id"]:
+        idx_covered = ret.player_index[df["player_id"] == pid].dropna().values[0]
+        idx_baseline = baseline_player_index[df["player_id"] == pid].dropna().values[0]
+        assert idx_covered == idx_baseline, (
+            f"Player '{pid}': player_index in get_das_covered ({idx_covered}) "
+            f"!= baseline ({idx_baseline})"
+        )

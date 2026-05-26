@@ -1834,6 +1834,13 @@ def validation_dashboard(dummy=False, run_asserts=True):
 
     assert rng.bit_generator.state == {'bit_generator': 'PCG64', 'state': {'state': 286257635543766940493387507884471841288, 'inc': 60341604818905247986700519057288636087}, 'has_uint32': 1, 'uinteger': 1775787077}
 
+    try:
+        mean_correct = mean_correct
+        mean_correct_not_only_differs_by_z = mean_correct_not_only_differs_by_z
+    except UnboundLocalError:
+        mean_correct = None
+        mean_correct_not_only_differs_by_z = None
+
     return df_test_scores, biggest_xc_in_test_set, avg_xc_total_only_success_test, avg_xc_total_only_failure_test, target_density_success, target_density_fail, mean_correct, mean_correct_not_only_differs_by_z
 
 
@@ -1849,6 +1856,7 @@ def validate_das(dfs_tracking, dfs_passes):
                                     event_target_frame_col="end_frame_id", event_start_x_col="coordinates_x",
                                     event_start_y_col="coordinates_y", event_target_x_col="end_coordinates_x",
                                     event_target_y_col="end_coordinates_y", tracking_period_col="period_id",
+                                    use_float32=False,  # use float64 as in original validation
                                     )
         return das_result
 

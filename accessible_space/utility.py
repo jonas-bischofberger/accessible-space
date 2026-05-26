@@ -106,7 +106,7 @@ def _opening_angle_to_goal(x, y):
         divisor[i_div_0] = np.inf  # Avoid division by zero by setting divisor to inf
         dot_product = np.sum(u * v, axis=0)
         cosTh1 = dot_product / divisor
-        angle = np.arccos(cosTh1)
+        angle = np.arccos(np.clip(cosTh1, -1.0, 1.0))
         return angle
 
     x_goal = 52.5
