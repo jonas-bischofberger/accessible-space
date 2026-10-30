@@ -200,10 +200,7 @@ def simulate_passes(
             player_is_passer = passers[:, np.newaxis] == players[np.newaxis, :]  # F x P
             PLAYER_IS_OFFSIDE = PLAYER_IS_OFFSIDE & (~player_is_passer)  # F x P
 
-        try:
-            PLAYER_POS[PLAYER_IS_OFFSIDE, :] = np.nan
-        except ValueError:
-            warnings.warn("Offside not properly detectable, maybe too few defenders. Ignoring offside.")
+        PLAYER_POS = np.where(PLAYER_IS_OFFSIDE[:, :, np.newaxis], np.nan, PLAYER_POS)  # F x P x 4, don't modify input in-place (may be read-only, e.g. pandas >= 3)
 
     ### 1. Calculate ball trajectory
     # 1.1 Calculate spatial grid

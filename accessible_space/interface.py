@@ -114,7 +114,7 @@ def transform_into_arrays(
     """
     Convert tracking data from a DataFrame to numpy matrices as used within this package to compute the passing model.
 
-    >>> df_tracking = pd.DataFrame({"frame_id": [5, 5, 6, 6, 5, 6], "player_id": ["A", "B", "A", "B", "ball", "ball"], "team_id": ["H", "A", "H", "A", None, None], "team_in_possession": ["H", "H", "H", "H", "H", "H"], "x": [1.0, 2, 3, 4, 5, 6], "y": [5.0, 6, 7, 8, 9, 10], "vx": [9.0, 10, 11, 12, 13, 14], "vy": [13.0, 14, 15, 16, 17, 18]})
+    >>> df_tracking = pd.DataFrame({"frame_id": [5, 5, 6, 6, 5, 6], "player_id": ["A", "B", "A", "B", "ball", "ball"], "team_id": pd.Series(["H", "A", "H", "A", None, None], dtype=object), "team_in_possession": ["H", "H", "H", "H", "H", "H"], "x": [1.0, 2, 3, 4, 5, 6], "y": [5.0, 6, 7, 8, 9, 10], "vx": [9.0, 10, 11, 12, 13, 14], "vy": [13.0, 14, 15, 16, 17, 18]})
     >>> df_tracking
        frame_id player_id team_id team_in_possession    x     y    vx    vy
     0         5         A       H                  H  1.0   5.0   9.0  13.0
@@ -206,7 +206,7 @@ def transform_into_arrays(
 
     players = np.array(df_players.columns.get_level_values(1).unique())  # P
     player2team = df_tracking.loc[i_player, [player_col, team_col]].drop_duplicates().set_index(player_col)[team_col]
-    player_teams = player2team.loc[players].values
+    player_teams = player2team.loc[players].to_numpy()
 
     if not ignore_ball_position:
         df_ball = df_tracking.loc[~i_player].set_index(frame_col)[coordinates]
@@ -214,7 +214,7 @@ def transform_into_arrays(
     else:
         BALL_POS = None
 
-    controlling_teams = df_tracking.groupby(frame_col, observed=False)[controlling_team_col].first().values
+    controlling_teams = df_tracking.groupby(frame_col, observed=False)[controlling_team_col].first().to_numpy()
 
     F = PLAYER_POS.shape[0]
     if not ignore_ball_position and F != BALL_POS.shape[0]:
@@ -716,9 +716,9 @@ def get_expected_pass_completion(
     phi_grid = df_passes[phi_col].values[:, np.newaxis]  # F x PHI
 
     # 4. Extract player team info
-    passer_teams = df_passes[event_team_col].values  # F
+    passer_teams = df_passes[event_team_col].to_numpy()  # F
     player_teams = np.array(player_teams)  # P
-    passers = df_passes[event_player_col].values  # F
+    passers = df_passes[event_player_col].to_numpy()  # F
     # if exclude_passer:
     #     passers_to_exclude = df_passes[event_player_col].values  # F
     # else:
@@ -913,7 +913,7 @@ def get_dangerous_accessible_space(
     )
     F = PLAYER_POS.shape[0]
     if player_in_possession_col is not None:
-        PASSERS = df_tracking[df_tracking[frame_col].isin(frame_to_index.keys())].drop_duplicates(frame_col)[player_in_possession_col].values  # F
+        PASSERS = df_tracking[df_tracking[frame_col].isin(frame_to_index.keys())].drop_duplicates(frame_col)[player_in_possession_col].to_numpy()  # F
     else:
         if respect_offside:
             warnings.warn("If 'respect_offside' is set to True, 'player_in_possession_col' should be set to the column containing the ball carrier, otherwise the ball carrier might be mis-identified as offside.")
