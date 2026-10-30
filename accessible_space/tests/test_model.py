@@ -835,7 +835,6 @@ def test_fields_to_return_are_present(_get_data):
         assert getattr(ret.simulation_result, field) is not None
 
 
-@pytest.mark.slow
 @pytest.mark.parametrize("_get_data", [_get_butterfly_data, _get_butterfly_data_with_nans])
 def test_fields_to_return_others_are_not_present(_get_data):
     _, _, df_tracking = _get_data()
@@ -1010,7 +1009,7 @@ def test_additional_defender_decreases_as_and_additional_attacker_increases_as(_
 @pytest.mark.slow
 def test_databallpy():
     import databallpy
-    game = databallpy.get_open_match(provider="metrica")
+    game = databallpy.get_open_game(provider="metrica")
     game.tracking_data.add_velocity(game.get_column_ids() + ["ball"], filter_type="savitzky_golay")
     game.tracking_data.add_individual_player_possession()
     game.synchronise_tracking_and_event_data()
