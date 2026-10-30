@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.1.1] - 2026-10-30
+
+### Fixed
+- Compatibility with pandas 3
+- Offside is now ignored for frames with fewer than 2 defenders instead of producing wrong results
+
 ## [2.1.0] - 2026-05-26
 
 ### Added
