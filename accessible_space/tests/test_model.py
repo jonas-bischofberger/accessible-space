@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import io
+import unittest.mock
 
 import accessible_space
 
@@ -886,7 +887,10 @@ def test_surface_plot(_get_data):
         plt.ylim([-34, 34])
         plt.scatter(df_tracking["x"], df_tracking["y"], color=df_tracking["player_color"])
 
-    import streamlit as st
+    try:
+        import streamlit as st
+    except ImportError:
+        st = unittest.mock.MagicMock()
     _plot()
     accessible_space.plot_expected_completion_surface(ret.simulation_result, 0, "attack_poss_density")
     st.write("attack_poss_density")
