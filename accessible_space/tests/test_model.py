@@ -193,6 +193,21 @@ def test_offside():
     assert df["DAS"].notna().all()
 
 
+@pytest.mark.parametrize("player_teams", [[0, 0, 0, 1], [0, 0, 0, 0]])
+@pytest.mark.parametrize("use_float32", [False, True])
+def test_offside_is_ignored_with_fewer_than_two_defenders(player_teams, use_float32):
+    PLAYER_POS = np.array([[[0, 0, 0, 0], [30, 0, 0, 0], [10, 20, 0, 0], [-40, 0, 0, 0]]], dtype=np.float32 if use_float32 else np.float64)  # "B" is offside when "X" and "Y" defend
+    kwargs = dict(
+        BALL_POS=np.array([[0, 0]]), phi_grid=np.array([[0]]), v0_grid=np.array([[15]]), passer_teams=np.array([0]),
+        player_teams=np.array(player_teams), players=np.array(["A", "B", "X", "Y"]), passers=np.array(["A"]),
+        playing_direction=np.array([1]), use_float32=use_float32,
+    )
+    with pytest.warns(UserWarning, match="fewer than 2 defenders"):
+        res_offside = accessible_space.simulate_passes(PLAYER_POS, respect_offside=True, **kwargs)
+    res_no_offside = accessible_space.simulate_passes(PLAYER_POS, respect_offside=False, **kwargs)
+
+    assert np.allclose(res_offside.attack_cum_prob, res_no_offside.attack_cum_prob)  # below 2 defenders: offside or not behave equally (no offside)
+
 
 def test_missing_ball_frames():  # it is not tested whether this results in valid results, it may even throw an exception!
     df_passes, _, df_tracking = _get_data_no_common_frames_in_event_and_tracking()
